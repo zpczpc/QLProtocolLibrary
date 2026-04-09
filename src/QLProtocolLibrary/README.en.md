@@ -2,7 +2,7 @@
 
 [中文](README.md) | English
 
-`QLProtocolLibrary` is designed to hide protocol details from callers and let them focus on two things only:
+`QLProtocolLibrary` is designed to hide QL device protocol details from callers and let them focus on two things only:
 
 1. build protocol frames
 2. parse protocol frames
@@ -224,6 +224,10 @@ Drop down to generic APIs only when you need protocol extension or debugging.
 Runnable sample:
 
 - `examples/QLProtocolLibrary.Demo`
+
+Repository:
+
+- `https://github.com/zpczpc/QLProtocolLibrary`
 
 
 ## More SDK-style usage

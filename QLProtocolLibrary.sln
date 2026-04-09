@@ -6,11 +6,15 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{B3
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{8FE0349A-55E8-4B1A-BB95-A4B1041A7C79}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QLProtocolLibrary.Demo", "examples\QLProtocolLibrary.Demo\QLProtocolLibrary.Demo.csproj", "{054C68A2-A313-2C34-F95B-AB137A9BB879}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QLProtocolLibrary", "src\QLProtocolLibrary\QLProtocolLibrary.csproj", "{A55BC984-9E1B-094D-04D8-9FEF180AE266}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QLProtocolLibrary.Tests", "tests\QLProtocolLibrary.Tests\QLProtocolLibrary.Tests.csproj", "{B32DC19B-D4C6-4129-B915-E7CD3A63FAF2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -26,6 +30,10 @@ Global
 		{A55BC984-9E1B-094D-04D8-9FEF180AE266}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A55BC984-9E1B-094D-04D8-9FEF180AE266}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A55BC984-9E1B-094D-04D8-9FEF180AE266}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B32DC19B-D4C6-4129-B915-E7CD3A63FAF2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B32DC19B-D4C6-4129-B915-E7CD3A63FAF2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B32DC19B-D4C6-4129-B915-E7CD3A63FAF2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B32DC19B-D4C6-4129-B915-E7CD3A63FAF2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -33,6 +41,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{054C68A2-A313-2C34-F95B-AB137A9BB879} = {B36A84DF-456D-A817-6EDD-3EC3E7F6E11F}
 		{A55BC984-9E1B-094D-04D8-9FEF180AE266} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{B32DC19B-D4C6-4129-B915-E7CD3A63FAF2} = {8FE0349A-55E8-4B1A-BB95-A4B1041A7C79}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F9A746E6-5CD4-47D4-9C2A-F3041F47BEE0}

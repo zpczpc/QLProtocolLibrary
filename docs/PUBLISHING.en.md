@@ -23,6 +23,12 @@ Recommended additional fields:
 - `PackageIcon`
 - `PackageReleaseNotes`
 
+Recommended public values for this repository:
+
+- `PackageProjectUrl`: `https://github.com/zpczpc/QLProtocolLibrary`
+- `RepositoryUrl`: `https://github.com/zpczpc/QLProtocolLibrary`
+- `PackageLicenseExpression`: `MIT`
+
 ## 2. Open-source information
 
 Before publishing publicly, confirm:
@@ -56,7 +62,9 @@ Make sure the sample project still runs:
 Run at least:
 
 ```bash
+dotnet restore .\QLProtocolLibrary.sln
 dotnet build .\src\QLProtocolLibrary\QLProtocolLibrary.csproj -c Release
+dotnet test .\tests\QLProtocolLibrary.Tests\QLProtocolLibrary.Tests.csproj -c Release
 dotnet pack .\src\QLProtocolLibrary\QLProtocolLibrary.csproj -c Release -o .\artifacts
 ```
 

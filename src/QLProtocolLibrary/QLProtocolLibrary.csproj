@@ -7,11 +7,21 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <PackageId>QLProtocolLibrary</PackageId>
     <Version>0.3.0</Version>
-    <Authors>QL</Authors>
-    <Company>QL</Company>
-    <Description>Protocol parsing and command packing library for internal QL devices. Designed to let application developers use the protocol without first learning every packet detail.</Description>
-    <PackageTags>protocol;modbus;tcp;ql;parser;packet</PackageTags>
+    <Authors>zpczpc</Authors>
+    <Company>zpczpc</Company>
+    <Description>Protocol parsing and frame building library for QL device communication over TCP, with both high-level business APIs and generic typed protocol APIs.</Description>
+    <PackageTags>protocol;tcp;sdk;parser;industrial;water-quality</PackageTags>
+    <PackageProjectUrl>https://github.com/zpczpc/QLProtocolLibrary</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/zpczpc/QLProtocolLibrary</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <RepositoryBranch>main</RepositoryBranch>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes>See CHANGELOG.md in the GitHub repository for version details. Version 0.3.0 adds known-operation APIs, unified known-response routing, richer examples, and open-source publishing documentation.</PackageReleaseNotes>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
@@ -20,6 +30,7 @@
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="README.en.md" Pack="true" PackagePath="\" />
+    <None Include="icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>
 

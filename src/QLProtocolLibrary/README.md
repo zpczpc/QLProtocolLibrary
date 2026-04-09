@@ -2,7 +2,7 @@
 
 中文 | [English](README.en.md)
 
-`QLProtocolLibrary` 的目标是把协议细节藏起来，让调用方直接做两件事：
+`QLProtocolLibrary` 的目标是把 QL 设备协议细节藏起来，让调用方直接做两件事：
 
 1. 打包协议
 2. 解析协议
@@ -327,6 +327,10 @@ var typed = frame.Decode(QlKnownRegisters.DeviceNo);
 可运行示例在：
 
 - `examples/QLProtocolLibrary.Demo`
+
+仓库地址：
+
+- `https://github.com/zpczpc/QLProtocolLibrary`
 
 
 ## 更进一步的 SDK 用法

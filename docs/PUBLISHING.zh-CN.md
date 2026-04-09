@@ -23,6 +23,12 @@
 - `PackageIcon`
 - `PackageReleaseNotes`
 
+当前公开发布建议值：
+
+- `PackageProjectUrl`：`https://github.com/zpczpc/QLProtocolLibrary`
+- `RepositoryUrl`：`https://github.com/zpczpc/QLProtocolLibrary`
+- `PackageLicenseExpression`：`MIT`
+
 ## 2. 开源信息
 
 发布到公开仓库前，建议明确：
@@ -56,7 +62,9 @@
 发布前建议至少执行：
 
 ```bash
+dotnet restore .\QLProtocolLibrary.sln
 dotnet build .\src\QLProtocolLibrary\QLProtocolLibrary.csproj -c Release
+dotnet test .\tests\QLProtocolLibrary.Tests\QLProtocolLibrary.Tests.csproj -c Release
 dotnet pack .\src\QLProtocolLibrary\QLProtocolLibrary.csproj -c Release -o .\artifacts
 ```
 

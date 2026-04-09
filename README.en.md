@@ -2,7 +2,7 @@
 
 [中文](README.md) | English
 
-`QLProtocolLibrary` is a C# library for an internal device protocol. Its goal is to hide protocol details so callers can start using the protocol without first studying the full protocol document.
+`QLProtocolLibrary` is a C# library for the QL device communication protocol. Its goal is to hide protocol details so callers can start using the protocol without first studying the full protocol document.
 
 Typical use cases:
 
@@ -71,18 +71,13 @@ if (QlProtocolKnownParsers.TryParseDeviceTime(frame, out var deviceTime))
 
 - `src/QLProtocolLibrary`: library source
 - `examples/QLProtocolLibrary.Demo`: sample project
+- `tests/QLProtocolLibrary.Tests`: unit tests
 - `docs`: open-source and publishing documents
 
-## Before public release
+## Project links
 
-Before publishing the package to a public NuGet feed, make sure you finalize:
-
-- package license
-- project homepage URL
-- repository URL
-- issue / discussion entry points
-- package icon
-- final README wording
-- versioning strategy
+- GitHub repository: https://github.com/zpczpc/QLProtocolLibrary
+- Issue tracker: https://github.com/zpczpc/QLProtocolLibrary/issues
+- License: MIT, see `LICENSE`
 
 See: [docs/PUBLISHING.en.md](docs/PUBLISHING.en.md)

@@ -2,7 +2,7 @@
 
 中文 | [English](README.en.md)
 
-`QLProtocolLibrary` 是一个面向公司内部设备协议的 C# 类库，目标是把协议细节封装起来，让调用方尽量不需要先熟悉整份协议文档就能开始使用。
+`QLProtocolLibrary` 是一个面向 QL 设备通讯协议的 C# 类库，目标是把协议细节封装起来，让调用方尽量不需要先熟悉整份协议文档就能开始使用。
 
 它适合：
 
@@ -71,18 +71,13 @@ if (QlProtocolKnownParsers.TryParseDeviceTime(frame, out var deviceTime))
 
 - `src/QLProtocolLibrary`：类库源码
 - `examples/QLProtocolLibrary.Demo`：示例项目
+- `tests/QLProtocolLibrary.Tests`：单元测试
 - `docs`：开源文档和发布说明
 
-## 开源发布前建议
+## 项目链接
 
-在真正发布到公开 NuGet 前，建议至少确认这些信息：
-
-- 包许可证类型
-- 项目主页 URL
-- 仓库 URL
-- issue / discussion 入口
-- 包图标
-- README 最终文案
-- 版本号策略
+- GitHub 仓库：https://github.com/zpczpc/QLProtocolLibrary
+- Issue 反馈：https://github.com/zpczpc/QLProtocolLibrary/issues
+- 许可证：MIT，见 `LICENSE`
 
 详细清单见：[docs/PUBLISHING.zh-CN.md](docs/PUBLISHING.zh-CN.md)
