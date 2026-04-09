@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageId>QLProtocolLibrary</PackageId>
+    <Version>0.3.0</Version>
+    <Authors>QL</Authors>
+    <Company>QL</Company>
+    <Description>Protocol parsing and command packing library for internal QL devices. Designed to let application developers use the protocol without first learning every packet detail.</Description>
+    <PackageTags>protocol;modbus;tcp;ql;parser;packet</PackageTags>
+    <RepositoryType>git</RepositoryType>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="README.en.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>
+

@@ -1,0 +1,40 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{B36A84DF-456D-A817-6EDD-3EC3E7F6E11F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QLProtocolLibrary.Demo", "examples\QLProtocolLibrary.Demo\QLProtocolLibrary.Demo.csproj", "{054C68A2-A313-2C34-F95B-AB137A9BB879}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QLProtocolLibrary", "src\QLProtocolLibrary\QLProtocolLibrary.csproj", "{A55BC984-9E1B-094D-04D8-9FEF180AE266}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{054C68A2-A313-2C34-F95B-AB137A9BB879}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{054C68A2-A313-2C34-F95B-AB137A9BB879}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{054C68A2-A313-2C34-F95B-AB137A9BB879}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{054C68A2-A313-2C34-F95B-AB137A9BB879}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A55BC984-9E1B-094D-04D8-9FEF180AE266}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A55BC984-9E1B-094D-04D8-9FEF180AE266}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A55BC984-9E1B-094D-04D8-9FEF180AE266}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A55BC984-9E1B-094D-04D8-9FEF180AE266}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{054C68A2-A313-2C34-F95B-AB137A9BB879} = {B36A84DF-456D-A817-6EDD-3EC3E7F6E11F}
+		{A55BC984-9E1B-094D-04D8-9FEF180AE266} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F9A746E6-5CD4-47D4-9C2A-F3041F47BEE0}
+	EndGlobalSection
+EndGlobal

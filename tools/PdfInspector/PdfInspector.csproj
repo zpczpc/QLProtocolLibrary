@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="iTextSharp.LGPLv2.Core.Fix">
+      <HintPath>C:\Users\25249\.nuget\packages\itextsharp.lgplv2.core.fix\1.4.3\lib\netstandard2.0\iTextSharp.LGPLv2.Core.Fix.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>
