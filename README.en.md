@@ -1,4 +1,8 @@
-﻿# QLProtocolLibrary
+# QLProtocolLibrary
+
+[![CI](https://github.com/zpczpc/QLProtocolLibrary/actions/workflows/dotnet-ci.yml/badge.svg)](https://github.com/zpczpc/QLProtocolLibrary/actions/workflows/dotnet-ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/QLProtocolLibrary?logo=nuget)](https://www.nuget.org/packages/QLProtocolLibrary)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 [中文](README.md) | English
 
@@ -29,6 +33,15 @@ It supports two usage styles at the same time:
 dotnet add package QLProtocolLibrary
 ```
 
+## Fastest start
+
+```csharp
+using QLProtocolLibrary;
+
+var command = QlProtocolKnownCommands.BuildReadDeviceTime("1001");
+Console.WriteLine(QlHexConverter.ToHexString(command));
+```
+
 ## Quick example
 
 ```csharp
@@ -54,7 +67,8 @@ if (QlProtocolKnownParsers.TryParseDeviceTime(frame, out var deviceTime))
 - Publishing checklist (English): [docs/PUBLISHING.en.md](docs/PUBLISHING.en.md)
 - Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
-- Demo project: [examples/QLProtocolLibrary.Demo/Program.cs](examples/QLProtocolLibrary.Demo/Program.cs)
+- Source-based demo: [examples/QLProtocolLibrary.Demo/Program.cs](examples/QLProtocolLibrary.Demo/Program.cs)
+- NuGet usage sample: [examples/QLProtocolLibrary.NuGetDemo/Program.cs](examples/QLProtocolLibrary.NuGetDemo/Program.cs)
 
 ## Current capabilities
 
@@ -70,7 +84,8 @@ if (QlProtocolKnownParsers.TryParseDeviceTime(frame, out var deviceTime))
 ## Repository layout
 
 - `src/QLProtocolLibrary`: library source
-- `examples/QLProtocolLibrary.Demo`: sample project
+- `examples/QLProtocolLibrary.Demo`: source-based sample
+- `examples/QLProtocolLibrary.NuGetDemo`: NuGet usage sample
 - `tests/QLProtocolLibrary.Tests`: unit tests
 - `docs`: open-source and publishing documents
 
@@ -78,6 +93,7 @@ if (QlProtocolKnownParsers.TryParseDeviceTime(frame, out var deviceTime))
 
 - GitHub repository: https://github.com/zpczpc/QLProtocolLibrary
 - Issue tracker: https://github.com/zpczpc/QLProtocolLibrary/issues
+- NuGet package: https://www.nuget.org/packages/QLProtocolLibrary
 - License: MIT, see `LICENSE`
 
 See: [docs/PUBLISHING.en.md](docs/PUBLISHING.en.md)

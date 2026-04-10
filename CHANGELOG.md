@@ -1,6 +1,19 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to this project will be documented in this file.
+
+## [0.3.1] - 2026-04-09
+
+### Added
+
+- external NuGet consumption sample: `examples/QLProtocolLibrary.NuGetDemo`
+- test coverage for read request classification and concatenated stream decoding
+- GitHub workflow for manual NuGet publishing
+
+### Changed
+
+- public package metadata now includes MIT license, repository URL, package icon, and symbol package output
+- root documentation now links directly to NuGet usage samples and GitHub project resources
 
 ## [0.3.0] - 2026-04-09
 

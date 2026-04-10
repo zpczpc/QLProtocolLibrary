@@ -86,6 +86,32 @@ namespace QLProtocolLibrary.Tests
             Assert.False(QlProtocolKnownParsers.TryParseDeviceTime(frame, out _));
         }
 
+        [Fact]
+        public void Parser_ClassifiesReadCommandAsReadRequest()
+        {
+            byte[] command = QlProtocolKnownCommands.BuildReadDeviceTime("1001");
+
+            QlProtocolFrame frame = QlProtocolParser.Parse(command);
+
+            Assert.Equal(QlProtocolFrameKind.ReadRequest, frame.Kind);
+            Assert.Equal(QlKnownRegisters.DeviceTime.Address, frame.Address);
+            Assert.Equal((ushort)3, frame.RegisterCount);
+            Assert.True(frame.IsCrcValid);
+        }
+
+        [Fact]
+        public void StreamDecoder_CanDecodeTwoConcatenatedFrames()
+        {
+            byte[] first = BuildReadResponse("1001", QlKnownRegisters.DeviceTime.Address, QlPayloadCodec.EncodeBcdDateTime(new DateTime(2026, 4, 9, 8, 30, 45)));
+            byte[] second = BuildReadResponse("1001", QlKnownRegisters.DeviceTime.Address, QlPayloadCodec.EncodeBcdDateTime(new DateTime(2026, 4, 9, 8, 30, 46)));
+            QlProtocolStreamDecoder decoder = new QlProtocolStreamDecoder();
+
+            IReadOnlyList<QlProtocolFrame> frames = decoder.Append(Combine(first, second));
+
+            Assert.Equal(2, frames.Count);
+            Assert.All(frames, frame => Assert.True(frame.IsCrcValid));
+        }
+
         private static byte[] BuildReadResponse(string mnText, ushort address, byte[] payload)
         {
             byte[] body = Combine(

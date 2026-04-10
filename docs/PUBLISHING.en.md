@@ -1,4 +1,4 @@
-﻿# Publishing Checklist
+# Publishing Checklist
 
 Use this file as the final checklist before publishing to a public NuGet feed.
 
@@ -13,6 +13,7 @@ Make sure these fields are correct:
 - `Description`
 - `PackageTags`
 - `PackageReadmeFile`
+- whether `Version` has been incremented for this release
 
 Recommended additional fields:
 
@@ -56,6 +57,7 @@ At minimum, verify:
 Make sure the sample project still runs:
 
 - `examples/QLProtocolLibrary.Demo`
+- `examples/QLProtocolLibrary.NuGetDemo`
 
 ## 5. Build checks
 
@@ -87,3 +89,7 @@ After publishing, verify immediately:
 3. call `QlKnownOperations.DeviceTime.BuildRead("1001")`
 4. call `QlProtocolParser.Parse(...)`
 5. verify XML documentation appears correctly in the IDE
+
+## 8. Before the next release
+
+If the repository contains new changes after the last NuGet release, increment the package version and update `CHANGELOG.md` before publishing again.

@@ -1,4 +1,8 @@
-﻿# QLProtocolLibrary
+# QLProtocolLibrary
+
+[![CI](https://github.com/zpczpc/QLProtocolLibrary/actions/workflows/dotnet-ci.yml/badge.svg)](https://github.com/zpczpc/QLProtocolLibrary/actions/workflows/dotnet-ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/QLProtocolLibrary?logo=nuget)](https://www.nuget.org/packages/QLProtocolLibrary)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 中文 | [English](README.en.md)
 
@@ -29,6 +33,15 @@
 dotnet add package QLProtocolLibrary
 ```
 
+## 最短接入方式
+
+```csharp
+using QLProtocolLibrary;
+
+var command = QlProtocolKnownCommands.BuildReadDeviceTime("1001");
+Console.WriteLine(QlHexConverter.ToHexString(command));
+```
+
 ## 快速示例
 
 ```csharp
@@ -54,7 +67,8 @@ if (QlProtocolKnownParsers.TryParseDeviceTime(frame, out var deviceTime))
 - Publishing checklist (English): [docs/PUBLISHING.en.md](docs/PUBLISHING.en.md)
 - 贡献说明：[CONTRIBUTING.md](CONTRIBUTING.md)
 - 版本变更：[CHANGELOG.md](CHANGELOG.md)
-- 示例工程：[examples/QLProtocolLibrary.Demo/Program.cs](examples/QLProtocolLibrary.Demo/Program.cs)
+- 源码示例：[examples/QLProtocolLibrary.Demo/Program.cs](examples/QLProtocolLibrary.Demo/Program.cs)
+- NuGet 使用示例：[examples/QLProtocolLibrary.NuGetDemo/Program.cs](examples/QLProtocolLibrary.NuGetDemo/Program.cs)
 
 ## 当前能力
 
@@ -70,7 +84,8 @@ if (QlProtocolKnownParsers.TryParseDeviceTime(frame, out var deviceTime))
 ## 仓库结构
 
 - `src/QLProtocolLibrary`：类库源码
-- `examples/QLProtocolLibrary.Demo`：示例项目
+- `examples/QLProtocolLibrary.Demo`：源码引用示例
+- `examples/QLProtocolLibrary.NuGetDemo`：NuGet 使用示例
 - `tests/QLProtocolLibrary.Tests`：单元测试
 - `docs`：开源文档和发布说明
 
@@ -78,6 +93,7 @@ if (QlProtocolKnownParsers.TryParseDeviceTime(frame, out var deviceTime))
 
 - GitHub 仓库：https://github.com/zpczpc/QLProtocolLibrary
 - Issue 反馈：https://github.com/zpczpc/QLProtocolLibrary/issues
+- NuGet 包：https://www.nuget.org/packages/QLProtocolLibrary
 - 许可证：MIT，见 `LICENSE`
 
 详细清单见：[docs/PUBLISHING.zh-CN.md](docs/PUBLISHING.zh-CN.md)

@@ -1,4 +1,4 @@
-﻿# 发布清单
+# 发布清单
 
 这个文件用于真正发布到公开 NuGet 之前的最后检查。
 
@@ -13,6 +13,7 @@
 - `Description`
 - `PackageTags`
 - `PackageReadmeFile`
+- `Version` 是否已为本次发布递增
 
 建议补充但当前代码里未强制写死的字段：
 
@@ -56,6 +57,7 @@
 建议确认示例可以直接运行：
 
 - `examples/QLProtocolLibrary.Demo`
+- `examples/QLProtocolLibrary.NuGetDemo`
 
 ## 5. 构建检查
 
@@ -87,3 +89,7 @@ dotnet pack .\src\QLProtocolLibrary\QLProtocolLibrary.csproj -c Release -o .\art
 3. 调用 `QlKnownOperations.DeviceTime.BuildRead("1001")`
 4. 调用 `QlProtocolParser.Parse(...)`
 5. 验证 XML 注释是否能在 IDE 正常显示
+
+## 8. 下一次发布前
+
+如果仓库主分支已经有新改动，但上一次发布的 NuGet 版本仍然是当前 `Version`，发布前记得先递增版本号并更新 `CHANGELOG.md`。
