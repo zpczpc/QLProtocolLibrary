@@ -66,6 +66,7 @@ using QLProtocolLibrary;
 
 uint deviceAddress = 0x10000001;
 
+// Read 1 register starting from 0x0000
 byte[] command = QlProtocolCommandBuilder.BuildRead(deviceAddress, 0x0000, 0x0001);
 Console.WriteLine(QlHexConverter.ToHexString(command));
 // 10 00 00 01 03 00 00 00 01 43 21
@@ -73,12 +74,17 @@ Console.WriteLine(QlHexConverter.ToHexString(command));
 
 ## Quick example
 
+### 1. Read a float register
+
 ```csharp
 using QLProtocolLibrary;
 
 uint deviceAddress = 0x10000001;
 
-byte[] command = QlProtocolCommandBuilder.BuildRead(deviceAddress, 0x0000, 0x0001);
+byte[] requestBytes = QlProtocolCommandBuilder.BuildRead(deviceAddress, 0x0000, 0x0001);
+Console.WriteLine(QlHexConverter.ToHexString(requestBytes));
+// 10 00 00 01 03 00 00 00 01 43 21
+
 byte[] responseBytes =
 {
     0x10, 0x00, 0x00, 0x01,
@@ -90,8 +96,36 @@ byte[] responseBytes =
 };
 
 QlProtocolFrame frame = QlProtocolParser.Parse(responseBytes);
+float value = frame.ReadSingle();
 
-Console.WriteLine(frame.ReadSingle()); // 9.9385
+Console.WriteLine(value); // 9.9385
+```
+
+### 2. Write a float register
+
+```csharp
+using QLProtocolLibrary;
+
+uint deviceAddress = 0x10000005;
+
+byte[] requestBytes = QlProtocolCommandBuilder.BuildWriteFloat(deviceAddress, 0x164E, 0.0596f);
+Console.WriteLine(QlHexConverter.ToHexString(requestBytes));
+// 10 00 00 05 06 16 4E 00 01 04 21 1F 74 3D 05 E4
+
+byte[] responseBytes =
+{
+    0x10, 0x00, 0x00, 0x05,
+    0x06,
+    0x16, 0x4E,
+    0x01,
+    0x60,
+    0x2A, 0x82
+};
+
+QlProtocolFrame frame = QlProtocolParser.Parse(responseBytes);
+
+Console.WriteLine(frame.Kind); // WriteResponse
+Console.WriteLine($"0x{frame.ResponseCode.GetValueOrDefault():X2}"); // 0x60
 ```
 
 ## Recommended mental model

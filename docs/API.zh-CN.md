@@ -169,6 +169,15 @@ Console.WriteLine(QlHexConverter.ToHexString(cmd));
 // 10 00 00 01 03 00 00 00 01 43 21
 ```
 
+写 float 示例：
+
+```csharp
+uint deviceAddress = 0x10000005;
+byte[] cmd = QlProtocolCommandBuilder.BuildWriteFloat(deviceAddress, 0x164E, 0.0596f);
+Console.WriteLine(QlHexConverter.ToHexString(cmd));
+// 10 00 00 05 06 16 4E 00 01 04 21 1F 74 3D 05 E4
+```
+
 ### `QlProtocolParser`
 
 作用：把完整协议报文解析成 `QlProtocolFrame`。
@@ -230,6 +239,11 @@ Console.WriteLine(QlHexConverter.ToHexString(cmd));
 示例：
 
 ```csharp
+// 读取 float 示例
+byte[] requestBytes = QlProtocolCommandBuilder.BuildRead(0x10000001, 0x0000, 0x0001);
+Console.WriteLine(QlHexConverter.ToHexString(requestBytes));
+// 10 00 00 01 03 00 00 00 01 43 21
+
 byte[] responseBytes =
 {
     0x10, 0x00, 0x00, 0x01,
@@ -244,6 +258,29 @@ QlProtocolFrame frame = QlProtocolParser.Parse(responseBytes);
 
 float value = frame.ReadSingle();
 Console.WriteLine(value); // 9.9385
+```
+
+写 float 应答示例：
+
+```csharp
+byte[] writeRequestBytes = QlProtocolCommandBuilder.BuildWriteFloat(0x10000005, 0x164E, 0.0596f);
+Console.WriteLine(QlHexConverter.ToHexString(writeRequestBytes));
+// 10 00 00 05 06 16 4E 00 01 04 21 1F 74 3D 05 E4
+
+byte[] writeResponseBytes =
+{
+    0x10, 0x00, 0x00, 0x05,
+    0x06,
+    0x16, 0x4E,
+    0x01,
+    0x60,
+    0x2A, 0x82
+};
+
+QlProtocolFrame writeFrame = QlProtocolParser.Parse(writeResponseBytes);
+
+Console.WriteLine(writeFrame.Kind); // WriteResponse
+Console.WriteLine($"0x{writeFrame.ResponseCode.GetValueOrDefault():X2}"); // 0x60
 ```
 
 补充：
@@ -275,6 +312,12 @@ Console.WriteLine(value); // 9.9385
 - 响应解析
 - 高层已知寄存器组包与解析
 
+典型场景：
+
+- 发送：`10 00 00 01 03 00 00 00 01 43 21`
+- 应答：`10 00 00 01 03 00 00 04 1C 04 1F 41 97 E9`
+- 解析结果：`9.9385`
+
 ### `0x06` 写寄存器
 
 当前支持：
@@ -282,6 +325,12 @@ Console.WriteLine(value); // 9.9385
 - 请求组包
 - 请求解析
 - 简单响应解析
+
+典型场景：
+
+- 发送：`10 00 00 05 06 16 4E 00 01 04 21 1F 74 3D 05 E4`
+- 应答：`10 00 00 05 06 16 4E 01 60 2A 82`
+- 应答码：`0x60`
 
 ### `0x08`
 

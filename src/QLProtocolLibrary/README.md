@@ -36,15 +36,24 @@ using QLProtocolLibrary;
 
 uint deviceAddress = 0x10000001;
 
+// 读取从 00 00 开始的 1 个寄存器
 byte[] command = QlProtocolCommandBuilder.BuildRead(deviceAddress, 0x0000, 0x0001);
 Console.WriteLine(QlHexConverter.ToHexString(command));
 // 10 00 00 01 03 00 00 00 01 43 21
 ```
 
-## 解析示例
+## 读写示例
+
+### 读取一个 float 寄存器
 
 ```csharp
 using QLProtocolLibrary;
+
+uint deviceAddress = 0x10000001;
+
+byte[] requestBytes = QlProtocolCommandBuilder.BuildRead(deviceAddress, 0x0000, 0x0001);
+Console.WriteLine(QlHexConverter.ToHexString(requestBytes));
+// 10 00 00 01 03 00 00 00 01 43 21
 
 byte[] responseBytes =
 {
@@ -58,8 +67,34 @@ byte[] responseBytes =
 
 QlProtocolFrame frame = QlProtocolParser.Parse(responseBytes);
 
-Console.WriteLine(frame.DeviceAddressHex);
 Console.WriteLine(frame.ReadSingle()); // 9.9385
+```
+
+### 写入一个 float 寄存器
+
+```csharp
+using QLProtocolLibrary;
+
+uint deviceAddress = 0x10000005;
+
+byte[] requestBytes = QlProtocolCommandBuilder.BuildWriteFloat(deviceAddress, 0x164E, 0.0596f);
+Console.WriteLine(QlHexConverter.ToHexString(requestBytes));
+// 10 00 00 05 06 16 4E 00 01 04 21 1F 74 3D 05 E4
+
+byte[] responseBytes =
+{
+    0x10, 0x00, 0x00, 0x05,
+    0x06,
+    0x16, 0x4E,
+    0x01,
+    0x60,
+    0x2A, 0x82
+};
+
+QlProtocolFrame frame = QlProtocolParser.Parse(responseBytes);
+
+Console.WriteLine(frame.Kind); // WriteResponse
+Console.WriteLine($"0x{frame.ResponseCode.GetValueOrDefault():X2}"); // 0x60
 ```
 
 真实串口/485/TCP 接收场景里，建议直接把收到的原始 `byte[]` 传给 `QlProtocolParser.Parse(...)`。
