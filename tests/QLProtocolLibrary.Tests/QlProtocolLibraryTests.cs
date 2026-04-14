@@ -7,44 +7,78 @@ namespace QLProtocolLibrary.Tests
 {
     public sealed class QlProtocolLibraryTests
     {
-        [Fact]
-        public void BuildRead_KbInfo_UsesUpdatedRegisterCount()
-        {
-            byte[] command = QlKnownOperations.KbInfo.BuildRead("1001");
+        private const uint DeviceAddress = 0x10000001;
 
+        [Fact]
+        public void BuildRead_MatchesDocumentExample()
+        {
+            byte[] command = QlProtocolCommandBuilder.BuildRead(DeviceAddress, 0x0000, 0x0001);
+
+            Assert.Equal("10 00 00 01 03 00 00 00 01 43 21", QlHexConverter.ToHexString(command));
+        }
+
+        [Fact]
+        public void ParseReadResponseFloat_MatchesDocumentExample()
+        {
+            QlProtocolFrame frame = QlProtocolParser.ParseHex("10 00 00 01 03 00 00 04 1C 04 1F 41 97 E9");
+
+            Assert.True(frame.IsCrcValid);
+            Assert.Equal(DeviceAddress, frame.DeviceAddress);
+            Assert.Equal(QlProtocolFrameKind.ReadResponse, frame.Kind);
+            Assert.Equal((ushort)0x0000, frame.Address);
+            Assert.Equal((byte)4, frame.ByteCount);
+            Assert.Equal(9.9385f, frame.ReadSingle(), 4);
+        }
+
+        [Fact]
+        public void ParseReadResponseWord_MatchesDocumentExample()
+        {
+            QlProtocolFrame frame = QlProtocolParser.ParseHex("10 00 00 01 03 13 FA 04 E3 07 00 00 A9 66");
+
+            Assert.True(frame.IsCrcValid);
+            Assert.Equal((ushort)0x13FA, frame.Address);
+            Assert.Equal((ushort)2019, frame.ReadUInt16());
+        }
+
+        [Fact]
+        public void BuildWriteFloat_MatchesDocumentExample()
+        {
+            byte[] command = QlProtocolCommandBuilder.BuildWriteFloat(0x10000005, 0x164E, 0.0596f);
+
+            Assert.Equal("10 00 00 05 06 16 4E 00 01 04 21 1F 74 3D 05 E4", QlHexConverter.ToHexString(command));
+        }
+
+        [Fact]
+        public void BuildWriteRegisters_MatchesDocumentExample()
+        {
+            byte[] command = QlProtocolCommandBuilder.BuildWriteRegisters(DeviceAddress, 0x14B4, 115);
+
+            Assert.Equal("10 00 00 01 06 14 B4 00 01 04 73 00 00 00 41 20", QlHexConverter.ToHexString(command));
+        }
+
+        [Fact]
+        public void KnownOperation_BuildReadUsesRegisterCountInFourByteUnits()
+        {
+            byte[] command = QlKnownOperations.KbInfo.BuildRead(DeviceAddress);
             QlProtocolFrame frame = QlProtocolParser.Parse(command);
 
             Assert.Equal(QlProtocolFrameKind.ReadRequest, frame.Kind);
             Assert.Equal(QlKnownRegisters.KbInfo.Address, frame.Address);
-            Assert.Equal((ushort)14, frame.RegisterCount);
+            Assert.Equal((ushort)7, frame.RegisterCount);
             Assert.True(frame.IsCrcValid);
-        }
-
-        [Fact]
-        public void KnownParser_CanParseDeviceTimeReadResponse()
-        {
-            DateTime expected = new DateTime(2026, 4, 9, 8, 30, 45);
-            byte[] response = BuildReadResponse("1001", QlKnownRegisters.DeviceTime.Address, QlPayloadCodec.EncodeBcdDateTime(expected));
-
-            QlProtocolFrame frame = QlProtocolParser.Parse(response);
-
-            Assert.True(frame.IsCrcValid);
-            Assert.True(QlProtocolKnownParsers.TryParseDeviceTime(frame, out DateTime actual));
-            Assert.Equal(expected.ToString("yyyyMMddHHmmss"), actual.ToString("yyyyMMddHHmmss"));
         }
 
         [Fact]
         public void KnownRouter_CanParseRunStatusFrame()
         {
             byte[] payload = Combine(
-                QlPayloadCodec.EncodeUInt16(2),
-                QlPayloadCodec.EncodeUInt16(7),
-                QlPayloadCodec.EncodeUInt16(1),
-                QlPayloadCodec.EncodeUInt16(3),
+                QlPayloadCodec.EncodeValueUInt16(2),
+                QlPayloadCodec.EncodeValueUInt16(7),
+                QlPayloadCodec.EncodeValueUInt16(1),
+                QlPayloadCodec.EncodeValueUInt16(3),
                 QlPayloadCodec.EncodeUInt32(1001),
-                QlPayloadCodec.EncodeUInt32(0),
-                new byte[4]);
-            byte[] response = BuildReadResponse("1001", QlKnownRegisters.RunStatus.Address, payload);
+                QlPayloadCodec.EncodeUInt32(0));
+            byte[] response = BuildReadResponse(DeviceAddress, QlKnownRegisters.RunStatus.Address, payload);
 
             QlProtocolFrame frame = QlProtocolParser.Parse(response);
 
@@ -59,26 +93,10 @@ namespace QLProtocolLibrary.Tests
         }
 
         [Fact]
-        public void StreamDecoder_DoesNotSplitWriteFrameWhenPayloadContainsFooterSequence()
-        {
-            byte[] payload = { 0xBB, 0x55, 0x00, 0x01 };
-            byte[] frameBytes = QlProtocolCommandBuilder.BuildWrite("1001", 100, 2, payload);
-            QlProtocolStreamDecoder decoder = new QlProtocolStreamDecoder();
-
-            IReadOnlyList<QlProtocolFrame> frames = decoder.Append(frameBytes);
-
-            QlProtocolFrame frame = Assert.Single(frames);
-            Assert.Equal(QlProtocolFrameKind.WriteRequest, frame.Kind);
-            Assert.Equal((ushort)100, frame.Address);
-            Assert.Equal(payload, frame.Payload);
-            Assert.True(frame.IsCrcValid);
-        }
-
-        [Fact]
         public void KnownParser_RejectsFrameWithInvalidCrc()
         {
-            byte[] response = BuildReadResponse("1001", QlKnownRegisters.DeviceTime.Address, QlPayloadCodec.EncodeBcdDateTime(new DateTime(2026, 4, 9, 8, 30, 45)));
-            response[response.Length - 4] ^= 0x01;
+            byte[] response = BuildReadResponse(DeviceAddress, QlKnownRegisters.DeviceTime.Address, PadToRegister(QlPayloadCodec.EncodeBcdDateTime(new DateTime(2026, 4, 9, 8, 30, 45))));
+            response[^1] ^= 0x01;
 
             QlProtocolFrame frame = QlProtocolParser.Parse(response);
 
@@ -87,23 +105,10 @@ namespace QLProtocolLibrary.Tests
         }
 
         [Fact]
-        public void Parser_ClassifiesReadCommandAsReadRequest()
+        public void StreamDecoder_CanDecodeTwoWrappedFrames()
         {
-            byte[] command = QlProtocolKnownCommands.BuildReadDeviceTime("1001");
-
-            QlProtocolFrame frame = QlProtocolParser.Parse(command);
-
-            Assert.Equal(QlProtocolFrameKind.ReadRequest, frame.Kind);
-            Assert.Equal(QlKnownRegisters.DeviceTime.Address, frame.Address);
-            Assert.Equal((ushort)3, frame.RegisterCount);
-            Assert.True(frame.IsCrcValid);
-        }
-
-        [Fact]
-        public void StreamDecoder_CanDecodeTwoConcatenatedFrames()
-        {
-            byte[] first = BuildReadResponse("1001", QlKnownRegisters.DeviceTime.Address, QlPayloadCodec.EncodeBcdDateTime(new DateTime(2026, 4, 9, 8, 30, 45)));
-            byte[] second = BuildReadResponse("1001", QlKnownRegisters.DeviceTime.Address, QlPayloadCodec.EncodeBcdDateTime(new DateTime(2026, 4, 9, 8, 30, 46)));
+            byte[] first = BuildReadResponse(DeviceAddress, 0x0000, QlHexConverter.FromHexString("1C 04 1F 41"), includeEnvelope: true);
+            byte[] second = BuildReadResponse(DeviceAddress, 0x13FA, QlHexConverter.FromHexString("E3 07 00 00"), includeEnvelope: true);
             QlProtocolStreamDecoder decoder = new QlProtocolStreamDecoder();
 
             IReadOnlyList<QlProtocolFrame> frames = decoder.Append(Combine(first, second));
@@ -112,33 +117,56 @@ namespace QLProtocolLibrary.Tests
             Assert.All(frames, frame => Assert.True(frame.IsCrcValid));
         }
 
-        private static byte[] BuildReadResponse(string mnText, ushort address, byte[] payload)
+        private static byte[] BuildReadResponse(uint deviceAddress, ushort address, byte[] payload, bool includeEnvelope = false)
         {
-            byte[] body = Combine(
-                ToMnBytes(mnText),
-                new byte[] { (byte)QlFunctionCode.Read },
-                QlPayloadCodec.EncodeUInt16(address),
-                new byte[] { (byte)payload.Length },
-                payload);
-
-            ushort crc = QlProtocolCrc16.Compute(body);
-            return Combine(
-                new byte[] { QlProtocolConstants.HeaderHigh, QlProtocolConstants.HeaderLow },
-                body,
-                QlProtocolCrc16.GetBytesLowHigh(crc),
-                new byte[] { QlProtocolConstants.FooterHigh, QlProtocolConstants.FooterLow });
+            return BuildPacket(
+                deviceAddress,
+                (byte)QlFunctionCode.Read,
+                Combine(QlPayloadCodec.EncodeUInt16(address), new[] { (byte)payload.Length }, payload),
+                includeEnvelope);
         }
 
-        private static byte[] ToMnBytes(string mnText)
+        private static byte[] BuildPacket(uint deviceAddress, byte functionCode, byte[] functionData, bool includeEnvelope)
         {
-            ulong mnValue = ulong.Parse(mnText);
-            byte[] bytes = BitConverter.GetBytes(mnValue);
-            if (BitConverter.IsLittleEndian)
+            byte[] body = Combine(ToDeviceAddressBytes(deviceAddress), new[] { functionCode }, functionData);
+            ushort crc = QlProtocolCrc16.Compute(body);
+            byte[] packet = Combine(body, QlProtocolCrc16.GetBytesLowHigh(crc));
+
+            if (!includeEnvelope)
             {
-                Array.Reverse(bytes);
+                return packet;
             }
 
-            return bytes;
+            return Combine(
+                new[] { QlProtocolConstants.EnvelopeHeader1, QlProtocolConstants.EnvelopeHeader2, QlProtocolConstants.EnvelopeHeader3, QlProtocolConstants.EnvelopeHeader4 },
+                QlPayloadCodec.EncodeUInt16((ushort)packet.Length),
+                packet,
+                new[] { QlProtocolConstants.EnvelopeFooter1, QlProtocolConstants.EnvelopeFooter2 });
+        }
+
+        private static byte[] ToDeviceAddressBytes(uint deviceAddress)
+        {
+            return new[]
+            {
+                (byte)((deviceAddress >> 24) & 0xFF),
+                (byte)((deviceAddress >> 16) & 0xFF),
+                (byte)((deviceAddress >> 8) & 0xFF),
+                (byte)(deviceAddress & 0xFF)
+            };
+        }
+
+        private static byte[] PadToRegister(byte[] payload)
+        {
+            int registerSize = QlProtocolConstants.RegisterByteLength;
+            int targetLength = ((payload.Length + registerSize - 1) / registerSize) * registerSize;
+            if (targetLength == payload.Length)
+            {
+                return payload;
+            }
+
+            byte[] result = new byte[targetLength];
+            Array.Copy(payload, result, payload.Length);
+            return result;
         }
 
         private static byte[] Combine(params byte[][] arrays)

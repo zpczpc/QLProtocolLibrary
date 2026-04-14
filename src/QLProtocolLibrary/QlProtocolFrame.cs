@@ -1,4 +1,4 @@
-﻿namespace QLProtocolLibrary
+namespace QLProtocolLibrary
 {
     using System.Globalization;
 
@@ -9,19 +9,22 @@
     {
         internal QlProtocolFrame(
             byte[] rawBytes,
-            ulong mn,
+            bool hasEnvelope,
+            uint deviceAddress,
             byte rawFunctionCode,
             QlProtocolFrameKind kind,
             ushort address,
             ushort? registerCount,
             byte[] payload,
             byte? byteCount,
-            byte? errorCode,
+            ushort? dataLength,
+            byte? responseCode,
             ushort crc,
             ushort computedCrc)
         {
             RawBytes = rawBytes ?? throw new System.ArgumentNullException(nameof(rawBytes));
-            Mn = mn;
+            HasEnvelope = hasEnvelope;
+            DeviceAddress = deviceAddress;
             RawFunctionCode = rawFunctionCode;
             FunctionCode = QlProtocolParser.ToFunctionCode(rawFunctionCode);
             Kind = kind;
@@ -29,86 +32,50 @@
             RegisterCount = registerCount;
             Payload = payload ?? System.Array.Empty<byte>();
             ByteCount = byteCount;
-            ErrorCode = errorCode;
+            DataLength = dataLength;
+            ResponseCode = responseCode;
             Crc = crc;
             ComputedCrc = computedCrc;
         }
 
-        /// <summary>
-        /// Gets the original complete frame bytes.
-        /// </summary>
         public byte[] RawBytes { get; }
 
-        /// <summary>
-        /// Gets the numeric MN value.
-        /// </summary>
-        public ulong Mn { get; }
+        public bool HasEnvelope { get; }
 
-        /// <summary>
-        /// Gets the MN value as plain text.
-        /// </summary>
-        public string MnText => Mn.ToString(CultureInfo.InvariantCulture);
+        public uint DeviceAddress { get; }
 
-        /// <summary>
-        /// Gets the raw function code byte.
-        /// </summary>
+        public string DeviceAddressHex =>
+            ((DeviceAddress >> 24) & 0xFF).ToString("X2", CultureInfo.InvariantCulture) + " "
+            + ((DeviceAddress >> 16) & 0xFF).ToString("X2", CultureInfo.InvariantCulture) + " "
+            + ((DeviceAddress >> 8) & 0xFF).ToString("X2", CultureInfo.InvariantCulture) + " "
+            + (DeviceAddress & 0xFF).ToString("X2", CultureInfo.InvariantCulture);
+
         public byte RawFunctionCode { get; }
 
-        /// <summary>
-        /// Gets the function code as an enum.
-        /// </summary>
         public QlFunctionCode FunctionCode { get; }
 
-        /// <summary>
-        /// Gets the parsed frame kind.
-        /// </summary>
         public QlProtocolFrameKind Kind { get; }
 
-        /// <summary>
-        /// Gets the register address.
-        /// </summary>
         public ushort Address { get; }
 
-        /// <summary>
-        /// Gets the register count when it can be inferred from the frame.
-        /// </summary>
         public ushort? RegisterCount { get; }
 
-        /// <summary>
-        /// Gets the business payload bytes.
-        /// </summary>
         public byte[] Payload { get; }
 
-        /// <summary>
-        /// Gets the payload byte count when it exists in the frame.
-        /// </summary>
         public byte? ByteCount { get; }
 
-        /// <summary>
-        /// Gets the error code for error frames.
-        /// </summary>
-        public byte? ErrorCode { get; }
+        public ushort? DataLength { get; }
 
-        /// <summary>
-        /// Gets the CRC value carried by the frame.
-        /// </summary>
+        public byte? ResponseCode { get; }
+
+        public byte? ErrorCode => ResponseCode;
+
         public ushort Crc { get; }
 
-        /// <summary>
-        /// Gets the CRC value computed from the parsed frame body.
-        /// </summary>
         public ushort ComputedCrc { get; }
 
-        /// <summary>
-        /// Gets whether the received CRC matches the computed CRC.
-        /// </summary>
         public bool IsCrcValid => Crc == ComputedCrc;
 
-        /// <summary>
-        /// Converts the full frame to a hex string.
-        /// </summary>
-        /// <param name="withSpaces">Whether to include spaces between bytes.</param>
-        /// <returns>A hex string representation of the full frame.</returns>
         public string ToHexString(bool withSpaces = true)
         {
             return QlHexConverter.ToHexString(RawBytes, withSpaces);

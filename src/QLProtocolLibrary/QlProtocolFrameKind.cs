@@ -7,7 +7,10 @@ namespace QLProtocolLibrary
         ReadResponse,
         WriteRequest,
         WriteResponse,
-        SingleWriteResponse,
+        OperationRequest,
+        OperationResponse,
+        LengthPrefixedFrame,
+        BootloaderFrame,
         ErrorResponse
     }
 }

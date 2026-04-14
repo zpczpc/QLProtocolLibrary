@@ -4,10 +4,13 @@ namespace QLProtocolLibrary
     {
         Unknown = 0x00,
         Read = 0x03,
-        SingleWriteSuccess = 0x06,
-        Write = 0x10,
-        ReadFailed = 0x83,
-        SingleWriteFailed = 0x86,
-        WriteFailed = 0x90
+        Write = 0x06,
+        Operation = 0x08,
+        Bootloader = 0x09,
+        ReadLog = 0x23,
+        WriteLog = 0x26,
+        TfRead = 0x30,
+        Forward = 0x32,
+        Database = 0x33
     }
 }

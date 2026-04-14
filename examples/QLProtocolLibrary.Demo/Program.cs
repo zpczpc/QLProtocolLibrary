@@ -1,117 +1,94 @@
-﻿using QLProtocolLibrary;
+using QLProtocolLibrary;
 
-var mn = "1001";
+uint deviceAddress = 0x10000001;
 
-Console.WriteLine("=== High-Level Commands (No Address Needed) ===");
-Console.WriteLine(QlProtocolKnownCommands.BuildReadDeviceTimeHex(mn));
-Console.WriteLine(QlKnownOperations.DeviceTime.BuildReadHex(mn));
-Console.WriteLine(QlKnownOperations.RunStatus.BuildReadHex(mn));
-
-Console.WriteLine();
-Console.WriteLine("=== Generic Typed Parsing ===");
-byte[] deviceTimeResponse = BuildReadResponse(mn, QlKnownRegisters.DeviceTime.Address, QlPayloadCodec.EncodeBcdDateTime(new DateTime(2026, 4, 9, 8, 30, 45)));
-QlProtocolFrame deviceTimeFrame = QlProtocolParser.Parse(deviceTimeResponse);
-Console.WriteLine($"Address={deviceTimeFrame.Address}, CRC={deviceTimeFrame.IsCrcValid}, DeviceTime={deviceTimeFrame.ReadBcdDateTime():yyyy-MM-dd HH:mm:ss}");
-
-byte[] deviceNoPayload = QlPayloadCodec.EncodeUtf8("DEVICE-001", fixedByteLength: 16);
-byte[] deviceNoResponse = BuildReadResponse(mn, QlKnownRegisters.DeviceNo.Address, deviceNoPayload);
-QlProtocolFrame deviceNoFrame = QlProtocolParser.Parse(deviceNoResponse);
-QlDecodedRegisterValue decoded = deviceNoFrame.Decode(QlKnownRegisters.DeviceNo);
-Console.WriteLine($"DeviceNo={decoded.GetValue<string>()}");
+Console.WriteLine("=== 1. 文档示例：读取 00 00 寄存器 1 个 ===");
+byte[] readCommand = QlProtocolCommandBuilder.BuildRead(deviceAddress, 0x0000, 0x0001);
+Console.WriteLine(QlHexConverter.ToHexString(readCommand));
 
 Console.WriteLine();
-Console.WriteLine("=== High-Level Business Parsing ===");
+Console.WriteLine("=== 2. 解析读取响应报文 ===");
+byte[] responseBytes =
+{
+    0x10, 0x00, 0x00, 0x01,
+    0x03,
+    0x00, 0x00,
+    0x04,
+    0x1C, 0x04, 0x1F, 0x41,
+    0x97, 0xE9
+};
+QlProtocolFrame readFrame = QlProtocolParser.Parse(responseBytes);
+Console.WriteLine($"Device={readFrame.DeviceAddressHex}, Kind={readFrame.Kind}, Address=0x{readFrame.Address:X4}, CRC={readFrame.IsCrcValid}");
+Console.WriteLine($"FloatValue={readFrame.ReadSingle():F4}");
+
+Console.WriteLine();
+Console.WriteLine("=== 3. 文档示例：写 FLOAT 寄存器 ===");
+byte[] writeFloatCommand = QlProtocolCommandBuilder.BuildWriteFloat(0x10000005, 0x164E, 0.0596f);
+Console.WriteLine(QlHexConverter.ToHexString(writeFloatCommand));
+
+Console.WriteLine();
+Console.WriteLine("=== 4. 文档示例：写 WORD 寄存器 ===");
+byte[] writeWordCommand = QlProtocolCommandBuilder.BuildWriteRegisters(deviceAddress, 0x14B4, 115);
+Console.WriteLine(QlHexConverter.ToHexString(writeWordCommand));
+
+Console.WriteLine();
+Console.WriteLine("=== 5. 高层已知寄存器组包 ===");
+Console.WriteLine(QlProtocolKnownCommands.BuildReadConcentrationHex(deviceAddress));
+
+Console.WriteLine();
+Console.WriteLine("=== 6. 路由解析运行状态响应 ===");
 byte[] runStatusPayload = Combine(
-    QlPayloadCodec.EncodeUInt16(2),
-    QlPayloadCodec.EncodeUInt16(7),
-    QlPayloadCodec.EncodeUInt16(1),
-    QlPayloadCodec.EncodeUInt16(3),
+    QlPayloadCodec.EncodeValueUInt16(2),
+    QlPayloadCodec.EncodeValueUInt16(7),
+    QlPayloadCodec.EncodeValueUInt16(1),
+    QlPayloadCodec.EncodeValueUInt16(3),
     QlPayloadCodec.EncodeUInt32(1001),
-    QlPayloadCodec.EncodeUInt32(0),
-    new byte[14]);
-byte[] runStatusResponse = BuildReadResponse(mn, QlKnownRegisters.RunStatus.Address, runStatusPayload);
-QlProtocolFrame runStatusFrame = QlProtocolParser.Parse(runStatusResponse);
-if (QlKnownOperations.RunStatus.TryParse(runStatusFrame, out QlRunStatusInfo? runStatus) && runStatus != null)
+    QlPayloadCodec.EncodeUInt32(0));
+QlProtocolFrame runStatusFrame = QlProtocolParser.Parse(BuildReadResponse(deviceAddress, QlKnownRegisters.RunStatus.Address, runStatusPayload));
+
+if (QlProtocolKnownRouter.TryParse(runStatusFrame, out QlKnownParseResult? routed) && routed != null)
 {
-    Console.WriteLine(runStatus);
+    Console.WriteLine(routed.Name + " => " + routed.Value);
 }
 
-byte[] versionPayload = Combine(
-    FixedUtf8(32, "Android-1.0"),
-    FixedUtf8(32, "CommBoard-1.1"),
-    FixedUtf8(32, "Core-2.0"),
-    FixedUtf8(32, "ORP-1.0"),
-    FixedUtf8(32, "Meter-1.2"),
-    FixedUtf8(32, "Pump-1.3"),
-    FixedUtf8(32, "Spectrometer-3.0"));
-byte[] versionResponse = BuildReadResponse(mn, QlKnownRegisters.VersionBundle.Address, versionPayload);
-QlProtocolFrame versionFrame = QlProtocolParser.Parse(versionResponse);
-if (QlKnownOperations.VersionBundle.TryParse(versionFrame, out QlVersionBundleInfo? versionInfo) && versionInfo != null)
-{
-    Console.WriteLine(versionInfo);
-}
-
-Console.WriteLine();
-Console.WriteLine("=== Unified Known Router ===");
-if (QlProtocolKnownRouter.TryParse(deviceTimeFrame, out QlKnownParseResult? routed1) && routed1 != null)
-{
-    Console.WriteLine(routed1);
-}
-if (QlProtocolKnownRouter.TryParse(runStatusFrame, out QlKnownParseResult? routed2) && routed2 != null)
-{
-    Console.WriteLine(routed2.Name + " => " + routed2.Value);
-}
-
-Console.WriteLine();
-Console.WriteLine("=== TCP Stream Decoder ===");
-QlProtocolStreamDecoder decoder = new QlProtocolStreamDecoder();
-byte[] stickyBytes = Combine(deviceTimeResponse, runStatusResponse, versionResponse);
-var frames = decoder.Append(stickyBytes);
-Console.WriteLine($"Stream decoder output count: {frames.Count}");
-
-static byte[] BuildReadResponse(string mnText, ushort address, byte[] payload)
+static byte[] BuildReadResponse(uint deviceAddress, ushort address, byte[] payload)
 {
     byte[] body = Combine(
-        ToMnBytes(mnText),
-        new byte[] { 0x03 },
+        ToDeviceAddressBytes(deviceAddress),
+        new[] { (byte)QlFunctionCode.Read },
         QlPayloadCodec.EncodeUInt16(address),
-        new byte[] { (byte)payload.Length },
+        new[] { (byte)payload.Length },
         payload);
 
     ushort crc = QlProtocolCrc16.Compute(body);
-    return Combine(
-        new byte[] { QlProtocolConstants.HeaderHigh, QlProtocolConstants.HeaderLow },
-        body,
-        QlProtocolCrc16.GetBytesLowHigh(crc),
-        new byte[] { QlProtocolConstants.FooterHigh, QlProtocolConstants.FooterLow });
+    return Combine(body, QlProtocolCrc16.GetBytesLowHigh(crc));
 }
 
-static byte[] ToMnBytes(string mnText)
+static byte[] ToDeviceAddressBytes(uint deviceAddress)
 {
-    ulong mnValue = ulong.Parse(mnText);
-    byte[] bytes = BitConverter.GetBytes(mnValue);
-    if (BitConverter.IsLittleEndian)
+    return new[]
     {
-        Array.Reverse(bytes);
-    }
-
-    return bytes;
-}
-
-static byte[] FixedUtf8(int byteLength, string text)
-{
-    return QlPayloadCodec.EncodeUtf8(text, fixedByteLength: byteLength, padToEven: false);
+        (byte)((deviceAddress >> 24) & 0xFF),
+        (byte)((deviceAddress >> 16) & 0xFF),
+        (byte)((deviceAddress >> 8) & 0xFF),
+        (byte)(deviceAddress & 0xFF)
+    };
 }
 
 static byte[] Combine(params byte[][] arrays)
 {
-    int totalLength = arrays.Sum(item => item.Length);
+    int totalLength = 0;
+    for (int i = 0; i < arrays.Length; i++)
+    {
+        totalLength += arrays[i].Length;
+    }
+
     byte[] result = new byte[totalLength];
     int offset = 0;
-    foreach (byte[] item in arrays)
+    for (int i = 0; i < arrays.Length; i++)
     {
-        Array.Copy(item, 0, result, offset, item.Length);
-        offset += item.Length;
+        Array.Copy(arrays[i], 0, result, offset, arrays[i].Length);
+        offset += arrays[i].Length;
     }
 
     return result;

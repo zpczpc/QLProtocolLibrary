@@ -1,4 +1,4 @@
-﻿namespace QLProtocolLibrary
+namespace QLProtocolLibrary
 {
     public interface IQlKnownOperation
     {
@@ -6,9 +6,9 @@
 
         QlRegisterDefinition Register { get; }
 
-        byte[] BuildRead(string mn);
+        byte[] BuildRead(uint deviceAddress);
 
-        string BuildReadHex(string mn);
+        string BuildReadHex(uint deviceAddress);
 
         bool TryParse(QlProtocolFrame frame, out QlKnownParseResult? result);
     }

@@ -22,30 +22,45 @@ namespace QLProtocolLibrary
             return (ushort)((data[offset] << 8) | data[offset + 1]);
         }
 
+        public static byte[] EncodeValueUInt16(ushort value)
+        {
+            return new[]
+            {
+                (byte)(value & 0xFF),
+                (byte)((value >> 8) & 0xFF)
+            };
+        }
+
+        public static ushort DecodeValueUInt16(byte[] data, int offset = 0)
+        {
+            ValidateSlice(data, offset, 2);
+            return (ushort)(data[offset] | (data[offset + 1] << 8));
+        }
+
         public static byte[] EncodeUInt32(uint value)
         {
             return new[]
             {
-                (byte)((value >> 24) & 0xFF),
-                (byte)((value >> 16) & 0xFF),
+                (byte)(value & 0xFF),
                 (byte)((value >> 8) & 0xFF),
-                (byte)(value & 0xFF)
+                (byte)((value >> 16) & 0xFF),
+                (byte)((value >> 24) & 0xFF)
             };
         }
 
         public static uint DecodeUInt32(byte[] data, int offset = 0)
         {
             ValidateSlice(data, offset, 4);
-            return ((uint)data[offset] << 24)
-                | ((uint)data[offset + 1] << 16)
-                | ((uint)data[offset + 2] << 8)
-                | data[offset + 3];
+            return (uint)data[offset]
+                | ((uint)data[offset + 1] << 8)
+                | ((uint)data[offset + 2] << 16)
+                | ((uint)data[offset + 3] << 24);
         }
 
         public static byte[] EncodeSingle(float value)
         {
             byte[] bytes = BitConverter.GetBytes(value);
-            if (BitConverter.IsLittleEndian)
+            if (!BitConverter.IsLittleEndian)
             {
                 Array.Reverse(bytes);
             }
@@ -58,7 +73,7 @@ namespace QLProtocolLibrary
             ValidateSlice(data, offset, 4);
             byte[] buffer = new byte[4];
             Array.Copy(data, offset, buffer, 0, 4);
-            if (BitConverter.IsLittleEndian)
+            if (!BitConverter.IsLittleEndian)
             {
                 Array.Reverse(buffer);
             }
@@ -87,7 +102,7 @@ namespace QLProtocolLibrary
             return values;
         }
 
-        public static byte[] EncodeUtf8(string value, int fixedByteLength = 0, bool padToEven = true)
+        public static byte[] EncodeUtf8(string value, int fixedByteLength = 0, bool padToEven = false)
         {
             if (value == null)
             {

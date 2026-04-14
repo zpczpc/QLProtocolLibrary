@@ -52,12 +52,25 @@
 - `CHANGELOG.md`
 - `CONTRIBUTING.md`
 
+检查重点：
+
+- 文档是否明确主协议结构为“设备地址 + 功能码 + 功能数据 + CRC”
+- 是否还残留 `MN`、`AA 55 ... BB 55` 这类旧实现描述
+- 是否明确说明可选包络与主裸报文的区别
+- 是否明确说明“不同功能码、不同数据类型的数据值字节序可能不同”
+
 ## 4. 示例检查
 
 建议确认示例可以直接运行：
 
 - `examples/QLProtocolLibrary.Demo`
 - `examples/QLProtocolLibrary.NuGetDemo`
+
+检查重点：
+
+- 是否直接使用 `uint deviceAddress`
+- 是否使用文档示例报文
+- 是否不再依赖旧的 `mn` 风格接口
 
 ## 5. 构建检查
 
@@ -76,9 +89,9 @@ dotnet pack .\src\QLProtocolLibrary\QLProtocolLibrary.csproj -c Release -o .\art
 
 - 包说明第一页是否足够清楚
 - 安装命令是否出现在 README 中
-- 高层 API 是否说明清楚
-- 调用者是否知道“无地址用法”和“通用类型用法”两种模式
-- 是否有示例代码可以直接复制
+- 是否明确列出主协议结构
+- 是否说明可选包络只是可选项
+- 示例代码是否可以直接复制
 
 ## 7. 发布后自检
 
@@ -86,7 +99,7 @@ dotnet pack .\src\QLProtocolLibrary\QLProtocolLibrary.csproj -c Release -o .\art
 
 1. `dotnet add package QLProtocolLibrary`
 2. 新建一个空项目引用包
-3. 调用 `QlKnownOperations.DeviceTime.BuildRead("1001")`
+3. 调用 `QlProtocolCommandBuilder.BuildRead(0x10000001, 0x0000, 0x0001)`
 4. 调用 `QlProtocolParser.Parse(...)`
 5. 验证 XML 注释是否能在 IDE 正常显示
 

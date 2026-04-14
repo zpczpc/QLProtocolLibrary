@@ -6,11 +6,11 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <PackageId>QLProtocolLibrary</PackageId>
-    <Version>0.3.1</Version>
+    <Version>0.4.0</Version>
     <Authors>zpczpc</Authors>
     <Company>zpczpc</Company>
-    <Description>Protocol parsing and frame building library for QL device communication over TCP, with both high-level business APIs and generic typed protocol APIs.</Description>
-    <PackageTags>protocol;tcp;sdk;parser;industrial;water-quality</PackageTags>
+    <Description>Packet builder and parser library for QL device communication based on device address, function code, payload, and CRC16. Suitable for serial, RS485, and transparent transport scenarios, with both high-level known-register APIs and generic typed packet APIs.</Description>
+    <PackageTags>protocol;serial;rs485;packet;crc16;parser;industrial;water-quality</PackageTags>
     <PackageProjectUrl>https://github.com/zpczpc/QLProtocolLibrary</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zpczpc/QLProtocolLibrary</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -18,7 +18,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageReleaseNotes>See CHANGELOG.md in the GitHub repository for version details. Version 0.3.1 adds a dedicated NuGet usage sample, broader automated test coverage, and improved public release documentation and workflows.</PackageReleaseNotes>
+    <PackageReleaseNotes>See CHANGELOG.md in the GitHub repository for version details. Version 0.4.0 aligns the core packet model with the main application-layer structure based on device address, function code, payload, and CRC16, and updates the public docs and demos accordingly.</PackageReleaseNotes>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>

@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-04-14
+
+### Changed
+
+- refactored the protocol core to follow the main application-layer document structure based on `DeviceAddress + FunctionCode + FunctionData + CRC16`
+- removed the old `MN`-based packet model from the current code path
+- aligned read/write examples with the protocol document samples such as `10 00 00 01 03 00 00 00 01 43 21`
+- updated payload encoding rules to distinguish protocol control fields from payload value fields
+- rewrote README, API docs, sample READMEs, and publishing checklists to match the current implementation
+
+### Added
+
+- tests that validate document-based read/write packet examples
+- demo output that directly matches documented packet samples
+
 ## [0.3.1] - 2026-04-09
 
 ### Added

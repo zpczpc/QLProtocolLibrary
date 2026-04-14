@@ -52,12 +52,25 @@ At minimum, verify:
 - `CHANGELOG.md`
 - `CONTRIBUTING.md`
 
+Focus points:
+
+- the docs clearly describe the main packet structure as `DeviceAddress + FunctionCode + FunctionData + CRC`
+- no stale `MN` or `AA 55 ... BB 55` descriptions remain
+- the optional envelope is explained as optional, not as the default packet model
+- byte-order notes clearly explain that payload layout depends on function code and data type
+
 ## 4. Example checks
 
-Make sure the sample project still runs:
+Make sure the sample projects still run:
 
 - `examples/QLProtocolLibrary.Demo`
 - `examples/QLProtocolLibrary.NuGetDemo`
+
+Focus points:
+
+- examples use `uint deviceAddress`
+- examples match the protocol document samples
+- examples no longer depend on the old `mn` style API
 
 ## 5. Build checks
 
@@ -76,9 +89,9 @@ Verify that:
 
 - the first README screen is clear enough
 - the installation command is visible
-- high-level APIs are explained clearly
-- both “address-free usage” and “generic typed usage” are documented
-- example code can be copied directly
+- the main packet structure is clearly described
+- the optional envelope is clearly marked as optional
+- the example code can be copied directly
 
 ## 7. Post-publish smoke test
 
@@ -86,7 +99,7 @@ After publishing, verify immediately:
 
 1. `dotnet add package QLProtocolLibrary`
 2. create a clean sample project
-3. call `QlKnownOperations.DeviceTime.BuildRead("1001")`
+3. call `QlProtocolCommandBuilder.BuildRead(0x10000001, 0x0000, 0x0001)`
 4. call `QlProtocolParser.Parse(...)`
 5. verify XML documentation appears correctly in the IDE
 

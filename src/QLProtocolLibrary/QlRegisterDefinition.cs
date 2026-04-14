@@ -1,4 +1,4 @@
-﻿namespace QLProtocolLibrary
+namespace QLProtocolLibrary
 {
     using System;
 
@@ -42,42 +42,20 @@
             Description = description ?? string.Empty;
         }
 
-        /// <summary>
-        /// Gets the register start address.
-        /// </summary>
         public ushort Address { get; }
 
-        /// <summary>
-        /// Gets the stable register key.
-        /// </summary>
         public string Key { get; }
 
-        /// <summary>
-        /// Gets the readable register name.
-        /// </summary>
         public string Name { get; }
 
-        /// <summary>
-        /// Gets the expected register count.
-        /// </summary>
         public ushort RegisterCount { get; }
 
-        /// <summary>
-        /// Gets the payload decoding type.
-        /// </summary>
         public QlPayloadType PayloadType { get; }
 
-        /// <summary>
-        /// Gets the optional business description.
-        /// </summary>
         public string Description { get; }
 
-        /// <summary>
-        /// Gets the expected payload byte length.
-        /// </summary>
-        public int PayloadByteLength => RegisterCount * 2;
+        public int PayloadByteLength => RegisterCount * QlProtocolConstants.RegisterByteLength;
 
-        /// <inheritdoc />
         public override string ToString()
         {
             return Key + " - " + Name + " (" + Address + ")";

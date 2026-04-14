@@ -2,8 +2,11 @@ namespace QLProtocolLibrary
 {
     using System;
     using System.Collections.Generic;
-    using System.Linq;
 
+    /// <summary>
+    /// Decodes the optional wrapped stream format defined by the protocol document.
+    /// Bare packets do not carry boundaries and therefore are not stream-splittable.
+    /// </summary>
     public sealed class QlProtocolStreamDecoder
     {
         private readonly List<byte> _buffer = new List<byte>();
@@ -20,10 +23,10 @@ namespace QLProtocolLibrary
 
             while (true)
             {
-                int headerIndex = FindSequence(_buffer, QlProtocolConstants.HeaderHigh, QlProtocolConstants.HeaderLow, 0);
+                int headerIndex = FindHeader();
                 if (headerIndex < 0)
                 {
-                    TrimToPartialHeader();
+                    TrimToPossibleHeaderPrefix();
                     break;
                 }
 
@@ -32,13 +35,20 @@ namespace QLProtocolLibrary
                     _buffer.RemoveRange(0, headerIndex);
                 }
 
-                FrameBoundaryState boundaryState = TryResolveFrameLength(out int frameLength);
-                if (boundaryState == FrameBoundaryState.NeedMoreData)
+                if (_buffer.Count < 6)
                 {
                     break;
                 }
 
-                if (boundaryState == FrameBoundaryState.Invalid)
+                ushort packetLength = QlPayloadCodec.DecodeUInt16(_buffer.ToArray(), 4);
+                int frameLength = 4 + 2 + packetLength + 2;
+                if (_buffer.Count < frameLength)
+                {
+                    break;
+                }
+
+                if (_buffer[frameLength - 2] != QlProtocolConstants.EnvelopeFooter1
+                    || _buffer[frameLength - 1] != QlProtocolConstants.EnvelopeFooter2)
                 {
                     _buffer.RemoveAt(0);
                     continue;
@@ -60,116 +70,14 @@ namespace QLProtocolLibrary
             _buffer.Clear();
         }
 
-        private FrameBoundaryState TryResolveFrameLength(out int frameLength)
+        private int FindHeader()
         {
-            frameLength = 0;
-            if (_buffer.Count < QlProtocolConstants.MinimumFrameLength)
+            for (int i = 0; i <= _buffer.Count - 4; i++)
             {
-                return FrameBoundaryState.NeedMoreData;
-            }
-
-            switch (_buffer[10])
-            {
-                case 0x03:
-                    if (_buffer.Count < 14)
-                    {
-                        return FrameBoundaryState.NeedMoreData;
-                    }
-
-                    return TryResolveCandidateFrameLength(frameLengthCandidates: new[] { 18 + _buffer[13], 19 }, out frameLength);
-                case 0x10:
-                    if (_buffer.Count < 16)
-                    {
-                        return FrameBoundaryState.NeedMoreData;
-                    }
-
-                    return TryResolveCandidateFrameLength(frameLengthCandidates: new[] { 20 + _buffer[15], 19 }, out frameLength);
-                case 0x06:
-                    return TryResolveCandidateFrameLength(frameLengthCandidates: new[] { 19 }, out frameLength);
-                case 0x83:
-                case 0x86:
-                case 0x90:
-                    return TryResolveCandidateFrameLength(frameLengthCandidates: new[] { 18 }, out frameLength);
-                default:
-                    int footerIndex = FindSequence(_buffer, QlProtocolConstants.FooterHigh, QlProtocolConstants.FooterLow, 2);
-                    if (footerIndex < 0)
-                    {
-                        return FrameBoundaryState.NeedMoreData;
-                    }
-
-                    frameLength = footerIndex + 2;
-                    return FrameBoundaryState.Ready;
-            }
-        }
-
-        private FrameBoundaryState TryResolveCandidateFrameLength(IEnumerable<int> frameLengthCandidates, out int frameLength)
-        {
-            frameLength = 0;
-            bool needsMoreData = false;
-
-            foreach (int candidate in frameLengthCandidates.Distinct())
-            {
-                if (candidate < QlProtocolConstants.MinimumFrameLength)
-                {
-                    continue;
-                }
-
-                if (_buffer.Count < candidate)
-                {
-                    needsMoreData = true;
-                    continue;
-                }
-
-                if (!HasFooter(candidate))
-                {
-                    continue;
-                }
-
-                if (CanParseFrame(candidate))
-                {
-                    frameLength = candidate;
-                    return FrameBoundaryState.Ready;
-                }
-            }
-
-            return needsMoreData ? FrameBoundaryState.NeedMoreData : FrameBoundaryState.Invalid;
-        }
-
-        private bool HasFooter(int frameLength)
-        {
-            return _buffer[frameLength - 2] == QlProtocolConstants.FooterHigh
-                && _buffer[frameLength - 1] == QlProtocolConstants.FooterLow;
-        }
-
-        private bool CanParseFrame(int frameLength)
-        {
-            byte[] rawFrame = _buffer.GetRange(0, frameLength).ToArray();
-            return QlProtocolParser.TryParse(rawFrame, out QlProtocolFrame? frame) && frame != null && frame.IsCrcValid;
-        }
-
-        private void TrimToPartialHeader()
-        {
-            if (_buffer.Count == 0)
-            {
-                return;
-            }
-
-            if (_buffer[_buffer.Count - 1] == QlProtocolConstants.HeaderHigh)
-            {
-                byte last = _buffer[_buffer.Count - 1];
-                _buffer.Clear();
-                _buffer.Add(last);
-                return;
-            }
-
-            _buffer.Clear();
-        }
-
-        private static int FindSequence(List<byte> buffer, byte first, byte second, int startIndex)
-        {
-            for (int i = startIndex; i < buffer.Count - 1; i++)
-            {
-                if (buffer[i] == first && buffer[i + 1] == second)
+                if (_buffer[i] == QlProtocolConstants.EnvelopeHeader1
+                    && _buffer[i + 1] == QlProtocolConstants.EnvelopeHeader2
+                    && _buffer[i + 2] == QlProtocolConstants.EnvelopeHeader3
+                    && _buffer[i + 3] == QlProtocolConstants.EnvelopeHeader4)
                 {
                     return i;
                 }
@@ -178,11 +86,39 @@ namespace QLProtocolLibrary
             return -1;
         }
 
-        private enum FrameBoundaryState
+        private void TrimToPossibleHeaderPrefix()
         {
-            NeedMoreData,
-            Ready,
-            Invalid
+            int maxPrefixLength = Math.Min(3, _buffer.Count);
+            for (int prefixLength = maxPrefixLength; prefixLength > 0; prefixLength--)
+            {
+                bool match = true;
+                for (int i = 0; i < prefixLength; i++)
+                {
+                    byte expected = i switch
+                    {
+                        0 => QlProtocolConstants.EnvelopeHeader1,
+                        1 => QlProtocolConstants.EnvelopeHeader2,
+                        2 => QlProtocolConstants.EnvelopeHeader3,
+                        _ => QlProtocolConstants.EnvelopeHeader4
+                    };
+
+                    if (_buffer[_buffer.Count - prefixLength + i] != expected)
+                    {
+                        match = false;
+                        break;
+                    }
+                }
+
+                if (match)
+                {
+                    byte[] tail = _buffer.GetRange(_buffer.Count - prefixLength, prefixLength).ToArray();
+                    _buffer.Clear();
+                    _buffer.AddRange(tail);
+                    return;
+                }
+            }
+
+            _buffer.Clear();
         }
     }
 }

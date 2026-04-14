@@ -1,4 +1,4 @@
-﻿namespace QLProtocolLibrary
+namespace QLProtocolLibrary
 {
     public delegate bool QlKnownParser<T>(QlProtocolFrame frame, out T value);
 
@@ -17,14 +17,14 @@
 
         public QlRegisterDefinition Register { get; }
 
-        public byte[] BuildRead(string mn)
+        public byte[] BuildRead(uint deviceAddress)
         {
-            return QlProtocolCommandBuilder.BuildRead(mn, Register);
+            return QlProtocolCommandBuilder.BuildRead(deviceAddress, Register);
         }
 
-        public string BuildReadHex(string mn)
+        public string BuildReadHex(uint deviceAddress)
         {
-            return QlHexConverter.ToHexString(BuildRead(mn));
+            return QlHexConverter.ToHexString(BuildRead(deviceAddress));
         }
 
         public bool TryParse(QlProtocolFrame frame, out T value)

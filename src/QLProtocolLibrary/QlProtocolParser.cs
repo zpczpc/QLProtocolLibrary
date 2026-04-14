@@ -1,18 +1,13 @@
-﻿namespace QLProtocolLibrary
+namespace QLProtocolLibrary
 {
     using System;
 
     /// <summary>
-    /// Parses complete QL protocol frames into structured objects.
+    /// Parses QL protocol packets into structured objects.
+    /// In real communication scenarios, callers should usually pass the raw received <see cref="byte"/> array directly.
     /// </summary>
     public static class QlProtocolParser
     {
-        /// <summary>
-        /// Parses a complete protocol frame.
-        /// </summary>
-        /// <param name="frameBytes">The full frame bytes including header, CRC, and footer.</param>
-        /// <returns>A parsed <see cref="QlProtocolFrame"/>.</returns>
-        /// <exception cref="QlProtocolException">Thrown when the frame format is invalid.</exception>
         public static QlProtocolFrame Parse(byte[] frameBytes)
         {
             if (frameBytes == null)
@@ -20,66 +15,60 @@
                 throw new ArgumentNullException(nameof(frameBytes));
             }
 
-            if (frameBytes.Length < QlProtocolConstants.MinimumFrameLength)
+            if (frameBytes.Length < QlProtocolConstants.BareMinimumFrameLength)
             {
                 throw new QlProtocolException("Frame is shorter than the protocol minimum length.");
             }
 
-            if (frameBytes[0] != QlProtocolConstants.HeaderHigh || frameBytes[1] != QlProtocolConstants.HeaderLow)
+            bool hasEnvelope = HasEnvelope(frameBytes);
+            byte[] packetBytes = ExtractPacket(frameBytes, hasEnvelope);
+
+            if (packetBytes.Length < QlProtocolConstants.BareMinimumFrameLength)
             {
-                throw new QlProtocolException("Frame header is invalid.");
+                throw new QlProtocolException("Packet is shorter than the protocol minimum length.");
             }
 
-            if (frameBytes[frameBytes.Length - 2] != QlProtocolConstants.FooterHigh
-                || frameBytes[frameBytes.Length - 1] != QlProtocolConstants.FooterLow)
-            {
-                throw new QlProtocolException("Frame footer is invalid.");
-            }
+            uint deviceAddress = DecodeDeviceAddress(packetBytes, 0);
+            byte rawFunctionCode = packetBytes[QlProtocolConstants.DeviceAddressByteLength];
+            ushort receivedCrc = DecodeCrc(packetBytes, packetBytes.Length - QlProtocolConstants.CrcByteLength);
 
-            ulong mn = DecodeMn(frameBytes, 2);
-            byte rawFunctionCode = frameBytes[10];
-            ushort address = QlPayloadCodec.DecodeUInt16(frameBytes, 11);
-            ushort receivedCrc = (ushort)((frameBytes[frameBytes.Length - 3] << 8) | frameBytes[frameBytes.Length - 4]);
-
-            byte[] crcSource = new byte[frameBytes.Length - 6];
-            Array.Copy(frameBytes, 2, crcSource, 0, crcSource.Length);
+            byte[] crcSource = new byte[packetBytes.Length - QlProtocolConstants.CrcByteLength];
+            Array.Copy(packetBytes, crcSource, crcSource.Length);
             ushort computedCrc = QlProtocolCrc16.Compute(crcSource);
 
-            ParsedBody body = ParseBody(frameBytes, rawFunctionCode, address);
+            byte[] functionData = new byte[packetBytes.Length - QlProtocolConstants.DeviceAddressByteLength - QlProtocolConstants.FunctionCodeByteLength - QlProtocolConstants.CrcByteLength];
+            Array.Copy(packetBytes, QlProtocolConstants.DeviceAddressByteLength + QlProtocolConstants.FunctionCodeByteLength, functionData, 0, functionData.Length);
+
+            ParsedBody body = ParseBody(rawFunctionCode, functionData);
 
             byte[] rawCopy = new byte[frameBytes.Length];
             Array.Copy(frameBytes, rawCopy, frameBytes.Length);
 
             return new QlProtocolFrame(
                 rawCopy,
-                mn,
+                hasEnvelope,
+                deviceAddress,
                 rawFunctionCode,
                 body.Kind,
-                address,
+                body.Address,
                 body.RegisterCount,
                 body.Payload,
                 body.ByteCount,
-                body.ErrorCode,
+                body.DataLength,
+                body.ResponseCode,
                 receivedCrc,
                 computedCrc);
         }
 
         /// <summary>
-        /// Parses a complete protocol frame represented as a space-separated hex string.
+        /// Parses a packet represented as a hex string.
+        /// This helper is mainly intended for debugging, tests, and documentation examples.
         /// </summary>
-        /// <param name="hex">Hex string containing the full frame.</param>
-        /// <returns>A parsed <see cref="QlProtocolFrame"/>.</returns>
         public static QlProtocolFrame ParseHex(string hex)
         {
             return Parse(QlHexConverter.FromHexString(hex));
         }
 
-        /// <summary>
-        /// Tries to parse a complete protocol frame without throwing on failure.
-        /// </summary>
-        /// <param name="frameBytes">The full frame bytes including header, CRC, and footer.</param>
-        /// <param name="frame">Parsed frame when successful; otherwise <c>null</c>.</param>
-        /// <returns><c>true</c> when parsing succeeds; otherwise <c>false</c>.</returns>
         public static bool TryParse(byte[] frameBytes, out QlProtocolFrame? frame)
         {
             try
@@ -95,11 +84,9 @@
         }
 
         /// <summary>
-        /// Tries to parse a complete protocol frame from a hex string without throwing on failure.
+        /// Tries to parse a packet represented as a hex string.
+        /// This helper is mainly intended for debugging, tests, and documentation examples.
         /// </summary>
-        /// <param name="hex">Hex string containing the full frame.</param>
-        /// <param name="frame">Parsed frame when successful; otherwise <c>null</c>.</param>
-        /// <returns><c>true</c> when parsing succeeds; otherwise <c>false</c>.</returns>
         public static bool TryParseHex(string hex, out QlProtocolFrame? frame)
         {
             try
@@ -121,166 +108,270 @@
                 case 0x03:
                     return QlFunctionCode.Read;
                 case 0x06:
-                    return QlFunctionCode.SingleWriteSuccess;
-                case 0x10:
                     return QlFunctionCode.Write;
-                case 0x83:
-                    return QlFunctionCode.ReadFailed;
-                case 0x86:
-                    return QlFunctionCode.SingleWriteFailed;
-                case 0x90:
-                    return QlFunctionCode.WriteFailed;
+                case 0x08:
+                    return QlFunctionCode.Operation;
+                case 0x09:
+                    return QlFunctionCode.Bootloader;
+                case 0x23:
+                    return QlFunctionCode.ReadLog;
+                case 0x26:
+                    return QlFunctionCode.WriteLog;
+                case 0x30:
+                    return QlFunctionCode.TfRead;
+                case 0x32:
+                    return QlFunctionCode.Forward;
+                case 0x33:
+                    return QlFunctionCode.Database;
                 default:
                     return QlFunctionCode.Unknown;
             }
         }
 
-        internal static byte[] EncodeMnBytes(ulong mn)
+        internal static byte[] EncodeDeviceAddressBytes(uint deviceAddress)
         {
-            byte[] bytes = BitConverter.GetBytes(mn);
-            if (BitConverter.IsLittleEndian)
+            return new[]
             {
-                Array.Reverse(bytes);
-            }
-
-            return bytes;
+                (byte)((deviceAddress >> 24) & 0xFF),
+                (byte)((deviceAddress >> 16) & 0xFF),
+                (byte)((deviceAddress >> 8) & 0xFF),
+                (byte)(deviceAddress & 0xFF)
+            };
         }
 
-        internal static ulong ParseMn(string mnText)
+        internal static uint DecodeDeviceAddress(byte[] data, int offset)
         {
-            if (string.IsNullOrWhiteSpace(mnText))
+            if (data == null)
             {
-                throw new QlProtocolException("MN cannot be empty.");
+                throw new ArgumentNullException(nameof(data));
             }
 
-            if (!ulong.TryParse(mnText, out ulong mn))
+            if (offset < 0 || offset + 4 > data.Length)
             {
-                throw new QlProtocolException("MN must be a positive integer string.");
+                throw new ArgumentOutOfRangeException(nameof(offset));
             }
 
-            return mn;
+            return ((uint)data[offset] << 24)
+                | ((uint)data[offset + 1] << 16)
+                | ((uint)data[offset + 2] << 8)
+                | data[offset + 3];
         }
 
-        private static ulong DecodeMn(byte[] frameBytes, int offset)
+        private static bool HasEnvelope(byte[] frameBytes)
         {
-            byte[] mnBytes = new byte[QlProtocolConstants.MnByteLength];
-            Array.Copy(frameBytes, offset, mnBytes, 0, mnBytes.Length);
-
-            if (BitConverter.IsLittleEndian)
-            {
-                Array.Reverse(mnBytes);
-            }
-
-            return BitConverter.ToUInt64(mnBytes, 0);
+            return frameBytes.Length >= 4
+                && frameBytes[0] == QlProtocolConstants.EnvelopeHeader1
+                && frameBytes[1] == QlProtocolConstants.EnvelopeHeader2
+                && frameBytes[2] == QlProtocolConstants.EnvelopeHeader3
+                && frameBytes[3] == QlProtocolConstants.EnvelopeHeader4;
         }
 
-        private static ParsedBody ParseBody(byte[] frameBytes, byte rawFunctionCode, ushort address)
+        private static byte[] ExtractPacket(byte[] frameBytes, bool hasEnvelope)
+        {
+            if (!hasEnvelope)
+            {
+                byte[] rawPacket = new byte[frameBytes.Length];
+                Array.Copy(frameBytes, rawPacket, frameBytes.Length);
+                return rawPacket;
+            }
+
+            if (frameBytes.Length < QlProtocolConstants.WrappedMinimumFrameLength)
+            {
+                throw new QlProtocolException("Wrapped frame is shorter than the protocol minimum length.");
+            }
+
+            ushort declaredLength = QlPayloadCodec.DecodeUInt16(frameBytes, 4);
+            int expectedLength = 4 + 2 + declaredLength + 2;
+            if (frameBytes.Length != expectedLength)
+            {
+                throw new QlProtocolException("Wrapped frame length does not match its declared length.");
+            }
+
+            if (frameBytes[frameBytes.Length - 2] != QlProtocolConstants.EnvelopeFooter1
+                || frameBytes[frameBytes.Length - 1] != QlProtocolConstants.EnvelopeFooter2)
+            {
+                throw new QlProtocolException("Frame footer is invalid.");
+            }
+
+            byte[] wrappedPacket = new byte[declaredLength];
+            Array.Copy(frameBytes, 6, wrappedPacket, 0, wrappedPacket.Length);
+            return wrappedPacket;
+        }
+
+        private static ushort DecodeCrc(byte[] frameBytes, int offset)
+        {
+            return (ushort)(frameBytes[offset] | (frameBytes[offset + 1] << 8));
+        }
+
+        private static ParsedBody ParseBody(byte rawFunctionCode, byte[] functionData)
         {
             switch (rawFunctionCode)
             {
                 case 0x03:
-                    return ParseRead(frameBytes);
-                case 0x10:
-                    return ParseWrite(frameBytes);
+                    return ParseRead(functionData);
                 case 0x06:
-                    return ParseSingleWriteResponse(frameBytes);
-                case 0x83:
-                case 0x86:
-                case 0x90:
-                    return ParseError(frameBytes, address);
+                    return ParseWrite(functionData);
+                case 0x08:
+                    return ParseOperation(functionData);
+                case 0x23:
+                case 0x26:
+                case 0x30:
+                case 0x32:
+                case 0x33:
+                    return ParseLengthPrefixed(functionData);
+                case 0x09:
+                    return new ParsedBody(QlProtocolFrameKind.BootloaderFrame, 0, null, functionData, null, (ushort)functionData.Length, null);
                 default:
-                    return ParseFallback(frameBytes);
+                    return new ParsedBody(QlProtocolFrameKind.Unknown, 0, null, functionData, null, null, null);
             }
         }
 
-        private static ParsedBody ParseRead(byte[] frameBytes)
+        private static ParsedBody ParseRead(byte[] functionData)
         {
-            if (frameBytes.Length == 19 && frameBytes[13] == 0x00)
+            if (functionData.Length < 4)
             {
-                return new ParsedBody(QlProtocolFrameKind.ReadRequest, QlPayloadCodec.DecodeUInt16(frameBytes, 13), Array.Empty<byte>(), null, null);
+                throw new QlProtocolException("Read frame payload is too short.");
             }
 
-            byte byteCount = frameBytes[13];
-            int expectedLength = 18 + byteCount;
-            if (frameBytes.Length != expectedLength)
+            ushort address = QlPayloadCodec.DecodeUInt16(functionData, 0);
+            if (functionData.Length == 4)
+            {
+                return new ParsedBody(
+                    QlProtocolFrameKind.ReadRequest,
+                    address,
+                    QlPayloadCodec.DecodeUInt16(functionData, 2),
+                    Array.Empty<byte>(),
+                    null,
+                    null,
+                    null);
+            }
+
+            byte byteCount = functionData[2];
+            if (functionData.Length != 3 + byteCount)
             {
                 throw new QlProtocolException("Read response length does not match its byte count.");
             }
 
-            byte[] payload = new byte[byteCount];
-            Array.Copy(frameBytes, 14, payload, 0, byteCount);
-            ushort? registerCount = byteCount % 2 == 0 ? (ushort?)(byteCount / 2) : null;
-            return new ParsedBody(QlProtocolFrameKind.ReadResponse, registerCount, payload, byteCount, null);
-        }
-
-        private static ParsedBody ParseWrite(byte[] frameBytes)
-        {
-            if (frameBytes.Length == 19)
+            if (byteCount == 1)
             {
-                return new ParsedBody(QlProtocolFrameKind.WriteResponse, QlPayloadCodec.DecodeUInt16(frameBytes, 13), Array.Empty<byte>(), null, null);
+                return new ParsedBody(
+                    QlProtocolFrameKind.ErrorResponse,
+                    address,
+                    null,
+                    Array.Empty<byte>(),
+                    byteCount,
+                    null,
+                    functionData[3]);
             }
 
-            byte byteCount = frameBytes[15];
-            int expectedLength = 20 + byteCount;
-            if (frameBytes.Length != expectedLength)
+            byte[] payload = new byte[byteCount];
+            Array.Copy(functionData, 3, payload, 0, payload.Length);
+            ushort? registerCount = byteCount % QlProtocolConstants.RegisterByteLength == 0
+                ? (ushort?)(byteCount / QlProtocolConstants.RegisterByteLength)
+                : null;
+
+            return new ParsedBody(QlProtocolFrameKind.ReadResponse, address, registerCount, payload, byteCount, null, null);
+        }
+
+        private static ParsedBody ParseWrite(byte[] functionData)
+        {
+            if (functionData.Length == 4)
+            {
+                ushort address = QlPayloadCodec.DecodeUInt16(functionData, 0);
+                byte byteCount = functionData[2];
+                return new ParsedBody(
+                    QlProtocolFrameKind.WriteResponse,
+                    address,
+                    null,
+                    Array.Empty<byte>(),
+                    byteCount,
+                    null,
+                    functionData[3]);
+            }
+
+            if (functionData.Length < 5)
+            {
+                throw new QlProtocolException("Write frame payload is too short.");
+            }
+
+            ushort addressValue = QlPayloadCodec.DecodeUInt16(functionData, 0);
+            ushort registerCountValue = QlPayloadCodec.DecodeUInt16(functionData, 2);
+            byte byteCountValue = functionData[4];
+
+            if (functionData.Length != 5 + byteCountValue)
             {
                 throw new QlProtocolException("Write request length does not match its byte count.");
             }
 
-            ushort registerCount = QlPayloadCodec.DecodeUInt16(frameBytes, 13);
-            byte[] payload = new byte[byteCount];
-            Array.Copy(frameBytes, 16, payload, 0, byteCount);
-            return new ParsedBody(QlProtocolFrameKind.WriteRequest, registerCount, payload, byteCount, null);
+            byte[] payload = new byte[byteCountValue];
+            Array.Copy(functionData, 5, payload, 0, payload.Length);
+            return new ParsedBody(QlProtocolFrameKind.WriteRequest, addressValue, registerCountValue, payload, byteCountValue, null, null);
         }
 
-        private static ParsedBody ParseSingleWriteResponse(byte[] frameBytes)
+        private static ParsedBody ParseOperation(byte[] functionData)
         {
-            if (frameBytes.Length != 19)
+            if (functionData.Length < 3)
             {
-                throw new QlProtocolException("Single write response must be 19 bytes long.");
+                throw new QlProtocolException("Operation frame payload is too short.");
             }
 
-            byte[] payload = new byte[2];
-            Array.Copy(frameBytes, 13, payload, 0, payload.Length);
-            return new ParsedBody(QlProtocolFrameKind.SingleWriteResponse, 1, payload, 2, null);
+            byte byteCount = functionData[0];
+            if (functionData.Length != 1 + byteCount)
+            {
+                throw new QlProtocolException("Operation frame length does not match its byte count.");
+            }
+
+            byte[] payload = new byte[functionData.Length - 1];
+            Array.Copy(functionData, 1, payload, 0, payload.Length);
+            if (functionData.Length == 3)
+            {
+                return new ParsedBody(QlProtocolFrameKind.OperationResponse, 0, null, payload, byteCount, null, functionData[2]);
+            }
+
+            return new ParsedBody(QlProtocolFrameKind.OperationRequest, 0, null, payload, byteCount, null, null);
         }
 
-        private static ParsedBody ParseError(byte[] frameBytes, ushort address)
+        private static ParsedBody ParseLengthPrefixed(byte[] functionData)
         {
-            if (frameBytes.Length != 18)
+            if (functionData.Length < 2)
             {
-                throw new QlProtocolException("Error response must be 18 bytes long.");
+                throw new QlProtocolException("Length-prefixed frame payload is too short.");
             }
 
-            byte errorCode = frameBytes[13];
-            return new ParsedBody(QlProtocolFrameKind.ErrorResponse, null, Array.Empty<byte>(), 1, errorCode);
-        }
-
-        private static ParsedBody ParseFallback(byte[] frameBytes)
-        {
-            if (frameBytes.Length <= 17)
+            ushort dataLength = QlPayloadCodec.DecodeUInt16(functionData, 0);
+            if (functionData.Length != 2 + dataLength)
             {
-                return new ParsedBody(QlProtocolFrameKind.Unknown, null, Array.Empty<byte>(), null, null);
+                throw new QlProtocolException("Length-prefixed frame length does not match its declared payload length.");
             }
 
-            int payloadLength = frameBytes.Length - 17;
-            byte[] payload = new byte[payloadLength];
-            Array.Copy(frameBytes, 13, payload, 0, payload.Length);
-            return new ParsedBody(QlProtocolFrameKind.Unknown, null, payload, (byte)payload.Length, null);
+            byte[] payload = new byte[dataLength];
+            Array.Copy(functionData, 2, payload, 0, payload.Length);
+            return new ParsedBody(QlProtocolFrameKind.LengthPrefixedFrame, 0, null, payload, null, dataLength, null);
         }
 
         private sealed class ParsedBody
         {
-            public ParsedBody(QlProtocolFrameKind kind, ushort? registerCount, byte[] payload, byte? byteCount, byte? errorCode)
+            public ParsedBody(
+                QlProtocolFrameKind kind,
+                ushort address,
+                ushort? registerCount,
+                byte[] payload,
+                byte? byteCount,
+                ushort? dataLength,
+                byte? responseCode)
             {
                 Kind = kind;
+                Address = address;
                 RegisterCount = registerCount;
                 Payload = payload;
                 ByteCount = byteCount;
-                ErrorCode = errorCode;
+                DataLength = dataLength;
+                ResponseCode = responseCode;
             }
 
             public QlProtocolFrameKind Kind { get; }
+
+            public ushort Address { get; }
 
             public ushort? RegisterCount { get; }
 
@@ -288,7 +379,9 @@
 
             public byte? ByteCount { get; }
 
-            public byte? ErrorCode { get; }
+            public ushort? DataLength { get; }
+
+            public byte? ResponseCode { get; }
         }
     }
 }
