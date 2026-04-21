@@ -1,37 +1,35 @@
 using QLProtocolLibrary;
 
 // 这里把自己当成“外部用户”来使用 NuGet 包。
-// 场景就是最常见的那种：
+// 最常见的实际流程就是：
 // 1. 先组一个发送报文
-// 2. 把 byte[] 发给设备
+// 2. 把原始 byte[] 发给设备
 // 3. 收到设备返回的 byte[] 后直接解析
 
 uint deviceAddress = 0x10000001;
-ushort registerAddress = 0x0000;
-ushort registerCount = 0x0001;
+ushort readAddress = 0x0000;
+ushort readRegisterCount = 0x0001;
+ushort writeAddress = 0x14B4;
+ushort writeUInt16Value = 1;
+const byte WriteSuccessCode = 0x60;
 
 Console.WriteLine("=== 1. NuGet 安装命令 ===");
 Console.WriteLine("dotnet add package QLProtocolLibrary --version 0.4.0");
 
 Console.WriteLine();
-Console.WriteLine("=== 2. 组发送报文：读取 00 00 开始的 1 个寄存器 ===");
+Console.WriteLine("=== 2. 组发送报文：读取 0x0000 开始的 1 个寄存器 ===");
 
-// 按协议文档：
-// 设备地址(4) + 功能码03(1) + 寄存器起始地址(2) + 寄存器数量(2) + CRC(2)
-// 其中 00 01 表示读取 1 个寄存器，而这份协议里 1 个寄存器 = 4 字节数据。
-byte[] requestBytes = QlProtocolCommandBuilder.BuildRead(deviceAddress, registerAddress, registerCount);
+byte[] readRequestBytes = QlProtocolCommandBuilder.BuildRead(deviceAddress, readAddress, readRegisterCount);
 
 Console.WriteLine("发送报文：");
-Console.WriteLine(QlHexConverter.ToHexString(requestBytes));
+Console.WriteLine(QlHexConverter.ToHexString(readRequestBytes));
 Console.WriteLine("文档期望：");
 Console.WriteLine("10 00 00 01 03 00 00 00 01 43 21");
 
 Console.WriteLine();
-Console.WriteLine("=== 3. 模拟接收设备应答报文 ===");
+Console.WriteLine("=== 3. 模拟接收设备读响应报文 ===");
 
-// 实际项目里，这里的 responseBytes 应该直接来自串口 / TCP / 485 收到的原始字节。
-// Demo 里用 byte[] 常量来模拟设备返回，而不是把“十六进制字符串”当成正式输入。
-byte[] responseBytes =
+byte[] readResponseBytes =
 {
     0x10, 0x00, 0x00, 0x01,
     0x03,
@@ -41,33 +39,80 @@ byte[] responseBytes =
     0x97, 0xE9
 };
 
-Console.WriteLine("应答报文：");
-Console.WriteLine(QlHexConverter.ToHexString(responseBytes));
+Console.WriteLine("读响应报文：");
+Console.WriteLine(QlHexConverter.ToHexString(readResponseBytes));
 
 Console.WriteLine();
-Console.WriteLine("=== 4. 解析应答报文 ===");
+Console.WriteLine("=== 4. 解析读响应报文 ===");
 
-QlProtocolFrame frame = QlProtocolParser.Parse(responseBytes);
+QlProtocolFrame readFrame = QlProtocolParser.Parse(readResponseBytes);
 
-Console.WriteLine($"设备地址: {frame.DeviceAddressHex}");
-Console.WriteLine($"功能码: 0x{frame.RawFunctionCode:X2}");
-Console.WriteLine($"报文类型: {frame.Kind}");
-Console.WriteLine($"寄存器地址: 0x{frame.Address:X4}");
-Console.WriteLine($"数据长度: {frame.ByteCount}");
-Console.WriteLine($"CRC 是否有效: {frame.IsCrcValid}");
-
-Console.WriteLine();
-Console.WriteLine("=== 5. 读取 payload 中的数据值 ===");
-
-// 这条应答对应文档里的 00 00 寄存器。
-// 文档说明 1C 04 1F 41 对应的 float 值为 9.9385。
-// 由于这个地址不是库内置的“已知业务寄存器”，这里直接走通用 API 最合适。
-float value = frame.ReadSingle();
-Console.WriteLine($"读取值(float): {value:F4}");
+Console.WriteLine($"设备地址: {readFrame.DeviceAddressHex}");
+Console.WriteLine($"功能码: 0x{readFrame.RawFunctionCode:X2}");
+Console.WriteLine($"报文类型: {readFrame.Kind}");
+Console.WriteLine($"寄存器地址: 0x{readFrame.Address:X4}");
+Console.WriteLine($"数据长度: {readFrame.ByteCount}");
+Console.WriteLine($"CRC 是否有效: {readFrame.IsCrcValid}");
 
 Console.WriteLine();
-Console.WriteLine("=== 6. 实际项目中的最小用法 ===");
-Console.WriteLine("1) 用 QlProtocolCommandBuilder.BuildRead(...) 组出 requestBytes");
+Console.WriteLine("=== 5. 从 payload 中读取 float 值 ===");
+
+float floatValue = readFrame.ReadSingle();
+Console.WriteLine($"解析出的 float 值: {floatValue:F4}");
+
+Console.WriteLine();
+Console.WriteLine("=== 6. 组写入报文：写入 UInt16 值 1 ===");
+
+// 这个协议里 1 个寄存器 = 4 字节。
+// BuildWriteRegisters 会把 UInt16 值编码成协议里寄存器写入需要的 payload 格式。
+byte[] writeRequestBytes = QlProtocolCommandBuilder.BuildWriteRegisters(
+    deviceAddress,
+    writeAddress,
+    writeUInt16Value);
+
+Console.WriteLine($"写入目标地址: 0x{writeAddress:X4}");
+Console.WriteLine($"写入 UInt16 值: {writeUInt16Value}");
+Console.WriteLine("写入请求报文：");
+Console.WriteLine(QlHexConverter.ToHexString(writeRequestBytes));
+
+Console.WriteLine();
+Console.WriteLine("=== 7. 模拟接收设备写响应报文，并判断是否写入成功 ===");
+
+// 实际项目中，这个 byte[] 应该来自串口 / TCP / 485 收到的设备回复。
+// 写响应格式由库解析为：
+// 设备地址 + 0x06 + 寄存器地址 + 字节数 + 响应码 + CRC
+byte[] writeResponseBytes = QlProtocolCommandBuilder.BuildPacket(
+    deviceAddress,
+    (byte)QlFunctionCode.Write,
+    new[]
+    {
+        (byte)(writeAddress >> 8),
+        (byte)(writeAddress & 0xFF),
+        (byte)0x01,
+        WriteSuccessCode
+    });
+
+Console.WriteLine("写响应报文：");
+Console.WriteLine(QlHexConverter.ToHexString(writeResponseBytes));
+
+QlProtocolFrame writeFrame = QlProtocolParser.Parse(writeResponseBytes);
+bool writeSuccess =
+    writeFrame.IsCrcValid
+    && writeFrame.Kind == QlProtocolFrameKind.WriteResponse
+    && writeFrame.DeviceAddress == deviceAddress
+    && writeFrame.Address == writeAddress
+    && writeFrame.ResponseCode == WriteSuccessCode;
+
+Console.WriteLine($"报文类型: {writeFrame.Kind}");
+Console.WriteLine($"寄存器地址: 0x{writeFrame.Address:X4}");
+Console.WriteLine($"响应码: 0x{writeFrame.ResponseCode.GetValueOrDefault():X2}");
+Console.WriteLine($"CRC 是否有效: {writeFrame.IsCrcValid}");
+Console.WriteLine($"是否写入成功: {writeSuccess}");
+
+Console.WriteLine();
+Console.WriteLine("=== 8. 最小使用方式总结 ===");
+Console.WriteLine("1) 用 QlProtocolCommandBuilder 组出 requestBytes");
 Console.WriteLine("2) 把 requestBytes 发给设备");
-Console.WriteLine("3) 收到 responseBytes 后调用 QlProtocolParser.Parse(responseBytes)");
-Console.WriteLine("4) 再按你的寄存器数据类型调用 ReadSingle / ReadUInt16 / ReadUInt32 等方法");
+Console.WriteLine("3) 从串口 / TCP / 485 收到 responseBytes");
+Console.WriteLine("4) 用 QlProtocolParser.Parse(responseBytes) 解析");
+Console.WriteLine("5) 读操作看 payload，写操作看 WriteResponse + ResponseCode");
