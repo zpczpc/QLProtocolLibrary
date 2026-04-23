@@ -51,6 +51,16 @@ if (QlProtocolKnownRouter.TryParse(runStatusFrame, out QlKnownParseResult? route
     Console.WriteLine(routed.Name + " => " + routed.Value);
 }
 
+Console.WriteLine();
+Console.WriteLine("=== 7. 0x32 指令转发正式 API 示例 ===");
+byte[] forwardedCommand = QlHexConverter.FromHexString("10 00 00 01 06 00 16 00 01 04 01 00 00 00 2E F9");
+byte[] forwardFrameBytes = QlProtocolCommandBuilder.BuildForward(0x1000000F, 0x01, forwardedCommand);
+Console.WriteLine(QlHexConverter.ToHexString(forwardFrameBytes));
+
+QlProtocolFrame forwardFrame = QlProtocolParser.Parse(forwardFrameBytes);
+Console.WriteLine($"ForwardPort={forwardFrame.ReadForwardPortId()}");
+Console.WriteLine(QlHexConverter.ToHexString(forwardFrame.ReadForwardContent()));
+
 static byte[] BuildReadResponse(uint deviceAddress, ushort address, byte[] payload)
 {
     byte[] body = Combine(

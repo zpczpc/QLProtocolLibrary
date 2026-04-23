@@ -57,6 +57,29 @@ namespace QLProtocolLibrary.Tests
         }
 
         [Fact]
+        public void BuildForward_MatchesForwardExample()
+        {
+            byte[] forwardedContent = QlHexConverter.FromHexString("10 00 00 01 06 00 16 00 01 04 01 00 00 00 2E F9");
+
+            byte[] command = QlProtocolCommandBuilder.BuildForward(0x1000000F, 0x01, forwardedContent);
+
+            Assert.Equal("10 00 00 0F 32 00 11 01 10 00 00 01 06 00 16 00 01 04 01 00 00 00 2E F9 CE D2", QlHexConverter.ToHexString(command));
+        }
+
+        [Fact]
+        public void ParseForwardFrame_CanReadPortIdAndForwardedContent()
+        {
+            QlProtocolFrame frame = QlProtocolParser.ParseHex("10 00 00 0F 32 00 11 01 10 00 00 01 06 00 16 00 01 04 01 00 00 00 2E F9 CE D2");
+
+            Assert.True(frame.IsCrcValid);
+            Assert.Equal(QlFunctionCode.Forward, frame.FunctionCode);
+            Assert.Equal(QlProtocolFrameKind.LengthPrefixedFrame, frame.Kind);
+            Assert.Equal((ushort)17, frame.DataLength);
+            Assert.Equal((byte)0x01, frame.ReadForwardPortId());
+            Assert.Equal("10 00 00 01 06 00 16 00 01 04 01 00 00 00 2E F9", QlHexConverter.ToHexString(frame.ReadForwardContent()));
+        }
+
+        [Fact]
         public void KnownOperation_BuildReadUsesRegisterCountInFourByteUnits()
         {
             byte[] command = QlKnownOperations.KbInfo.BuildRead(DeviceAddress);

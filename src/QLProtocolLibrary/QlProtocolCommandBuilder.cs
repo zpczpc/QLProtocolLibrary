@@ -135,6 +135,28 @@ namespace QLProtocolLibrary
             return BuildWrite(deviceAddress, QlProtocolConstants.SetTimeAddress, registerCount, payload);
         }
 
+        public static byte[] BuildForward(uint deviceAddress, byte portId, byte[] forwardedContent, bool includeEnvelope = false)
+        {
+            if (forwardedContent == null)
+            {
+                throw new ArgumentNullException(nameof(forwardedContent));
+            }
+
+            if (forwardedContent.Length >= ushort.MaxValue)
+            {
+                throw new QlProtocolException("Forward payload is too large for a single frame.");
+            }
+
+            return BuildPacket(
+                deviceAddress,
+                (byte)QlFunctionCode.Forward,
+                Concat(
+                    QlPayloadCodec.EncodeUInt16((ushort)(forwardedContent.Length + 1)),
+                    new[] { portId },
+                    forwardedContent),
+                includeEnvelope);
+        }
+
         public static string BuildReadHex(uint deviceAddress, ushort address, ushort registerCount, bool includeEnvelope = false)
         {
             return QlHexConverter.ToHexString(BuildRead(deviceAddress, address, registerCount, includeEnvelope));
@@ -153,6 +175,11 @@ namespace QLProtocolLibrary
         public static string BuildSetTimeHex(uint deviceAddress, DateTime value)
         {
             return QlHexConverter.ToHexString(BuildSetTime(deviceAddress, value));
+        }
+
+        public static string BuildForwardHex(uint deviceAddress, byte portId, byte[] forwardedContent, bool includeEnvelope = false)
+        {
+            return QlHexConverter.ToHexString(BuildForward(deviceAddress, portId, forwardedContent, includeEnvelope));
         }
 
         private static byte[] Wrap(byte[] packet)

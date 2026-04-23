@@ -6,24 +6,51 @@
 
 [中文](README.md) | English
 
-`QLProtocolLibrary` is a C# library for the QL device communication protocol. The current implementation aligns with the main application-layer packet structure used by this project.
+`QLProtocolLibrary` is a C# library for the QL device application-layer protocol.
 
-The goal is simple:
-
-1. build protocol packets
-2. parse protocol packets
-
-In other words, this library focuses on the practical workflow of sending one protocol packet and receiving one protocol packet, without introducing a separate custom outer framing model.
-
-## Protocol structure
-
-The main bare packet format in the document is:
+The main bare packet structure handled by the library is:
 
 ```text
 DeviceAddress(4) + FunctionCode(1) + FunctionData(N) + CRC16(2)
 ```
 
-Common function codes:
+It also supports the optional document envelope:
+
+```text
+C6 F4 C2 CC + Length(2) + BarePacket + 0D 0A
+```
+
+The goal is simple:
+
+1. build protocol packets directly
+2. parse protocol packets directly
+
+## Good fit for
+
+- upper-computer applications that send and receive protocol packets directly
+- device debugging and protocol testing tools
+- reusable protocol wrappers shared across projects
+- external projects consuming QL protocol support via NuGet
+
+## Installation
+
+```bash
+dotnet add package QLProtocolLibrary
+```
+
+## Smallest example
+
+```csharp
+using QLProtocolLibrary;
+
+uint deviceAddress = 0x10000001;
+
+byte[] requestBytes = QlProtocolCommandBuilder.BuildRead(deviceAddress, 0x0000, 0x0001);
+Console.WriteLine(QlHexConverter.ToHexString(requestBytes));
+// 10 00 00 01 03 00 00 00 01 43 21
+```
+
+## Common function codes
 
 - `0x03`: read registers
 - `0x06`: write registers
@@ -34,45 +61,7 @@ Common function codes:
 - `0x32`: command forwarding
 - `0x33`: database read
 
-The document also defines an optional envelope:
-
-```text
-C6 F4 C2 CC + Length(2) + BarePacket + 0D 0A
-```
-
-That envelope is optional. For the normal “send one frame, receive one frame” flow, the bare packet is usually enough.
-
-## Important notes
-
-- device address is always 4 bytes, for example `10 00 00 01`
-- CRC uses Modbus CRC16 and is transmitted low byte first
-- one register is `4 bytes` in this protocol
-- control fields such as addresses, counts, and length fields use high-byte-first order
-- payload value byte order is not globally uniform and must follow the specific function-code section in the protocol document
-- the current library already matches the document examples for common register `WORD` and `FLOAT` payloads
-
-This matters a lot: this protocol does not use one universal byte-order rule for every payload.
-
-## Installation
-
-```bash
-dotnet add package QLProtocolLibrary
-```
-
-## Shortest start
-
-```csharp
-using QLProtocolLibrary;
-
-uint deviceAddress = 0x10000001;
-
-// Read 1 register starting from 0x0000
-byte[] command = QlProtocolCommandBuilder.BuildRead(deviceAddress, 0x0000, 0x0001);
-Console.WriteLine(QlHexConverter.ToHexString(command));
-// 10 00 00 01 03 00 00 00 01 43 21
-```
-
-## Quick example
+## Quick examples
 
 ### 1. Read a float register
 
@@ -128,13 +117,50 @@ Console.WriteLine(frame.Kind); // WriteResponse
 Console.WriteLine($"0x{frame.ResponseCode.GetValueOrDefault():X2}"); // 0x60
 ```
 
+### 3. `0x32` command forwarding
+
+The current `0x32` shape is:
+
+```text
+DeviceAddress(4) + 0x32(1) + DataLength(2) + PortId(1) + ForwardedContent(N) + CRC16(2)
+```
+
+Where:
+
+- `DataLength` is the total byte count of `PortId + ForwardedContent`
+- `CRC16` is still transmitted low byte first
+- `ForwardedContent` is usually another complete normal QL command
+
+Starting from `0.5.0`, the library provides dedicated APIs:
+
+```csharp
+using QLProtocolLibrary;
+
+byte[] forwardedCommand = QlHexConverter.FromHexString(
+    "10 00 00 01 06 00 16 00 01 04 01 00 00 00 2E F9");
+
+byte[] forwardFrame = QlProtocolCommandBuilder.BuildForward(
+    0x1000000F,
+    0x01,
+    forwardedCommand);
+
+Console.WriteLine(QlHexConverter.ToHexString(forwardFrame));
+// 10 00 00 0F 32 00 11 01 10 00 00 01 06 00 16 00 01 04 01 00 00 00 2E F9 CE D2
+
+QlProtocolFrame parsed = QlProtocolParser.Parse(forwardFrame);
+
+Console.WriteLine(parsed.ReadForwardPortId()); // 1
+Console.WriteLine(QlHexConverter.ToHexString(parsed.ReadForwardContent()));
+// 10 00 00 01 06 00 16 00 01 04 01 00 00 00 2E F9
+```
+
 ## Recommended mental model
 
 The library has two layers.
 
 ### Layer 1: high-level known-register APIs
 
-For business code that already works with known register definitions.
+For business code that already maps to known register definitions.
 
 Examples:
 
@@ -145,38 +171,33 @@ Examples:
 
 ### Layer 2: generic protocol APIs
 
-For protocol debugging, custom register work, or raw packet processing.
+For protocol debugging, custom packet work, and raw frame handling.
 
 Examples:
 
 - `QlProtocolCommandBuilder.BuildRead(...)`
 - `QlProtocolCommandBuilder.BuildWriteFloat(...)`
+- `QlProtocolCommandBuilder.BuildForward(...)`
 - `QlProtocolParser.Parse(...)`
 - `frame.ReadSingle()`
-- `frame.ReadUInt16()`
-- `frame.Decode(QlKnownRegisters.Concentration)`
+- `frame.ReadForwardPortId()`
 
 ## Public APIs
 
-### 1. `QlProtocolCommandBuilder`
-
-Low-level packet builder.
+### `QlProtocolCommandBuilder`
 
 Common methods:
 
 - `BuildPacket(uint deviceAddress, byte rawFunctionCode, byte[] functionData, bool includeEnvelope = false)`
 - `BuildRead(uint deviceAddress, ushort address, ushort registerCount, bool includeEnvelope = false)`
-- `BuildRead(uint deviceAddress, QlRegisterDefinition register, bool includeEnvelope = false)`
 - `BuildWrite(uint deviceAddress, ushort address, ushort registerCount, byte[] payload, bool includeEnvelope = false)`
-- `BuildWrite(uint deviceAddress, QlRegisterDefinition register, byte[] payload, bool includeEnvelope = false)`
 - `BuildWriteRegisters(uint deviceAddress, ushort address, params ushort[] registers)`
 - `BuildWriteFloat(uint deviceAddress, ushort address, params float[] values)`
 - `BuildWriteUtf8(uint deviceAddress, ushort address, string value, int fixedByteLength = 0)`
 - `BuildSetTime(uint deviceAddress, DateTime value)`
+- `BuildForward(uint deviceAddress, byte portId, byte[] forwardedContent, bool includeEnvelope = false)`
 
-### 2. `QlProtocolParser`
-
-Low-level packet parser.
+### `QlProtocolParser`
 
 Common methods:
 
@@ -185,37 +206,7 @@ Common methods:
 - `TryParse(byte[] frameBytes, out QlProtocolFrame? frame)`
 - `TryParseHex(string hex, out QlProtocolFrame? frame)`
 
-Notes:
-
-- use `Parse(byte[])` for real serial or network input
-- `ParseHex(...)` is mainly a debugging and testing helper
-
-### 3. `QlProtocolFrame`
-
-Parsed frame object.
-
-Common properties:
-
-- `RawBytes`
-- `HasEnvelope`
-- `DeviceAddress`
-- `DeviceAddressHex`
-- `RawFunctionCode`
-- `FunctionCode`
-- `Kind`
-- `Address`
-- `RegisterCount`
-- `Payload`
-- `ByteCount`
-- `DataLength`
-- `ResponseCode`
-- `Crc`
-- `ComputedCrc`
-- `IsCrcValid`
-
-### 4. `QlProtocolFrameExtensions`
-
-Typed payload readers.
+### `QlProtocolFrameExtensions`
 
 Common methods:
 
@@ -228,101 +219,46 @@ Common methods:
 - `ReadBcdDateTime()`
 - `ReadBcdDateTimeText()`
 - `ReadUInt16Array()`
-- `Decode(QlRegisterDefinition register)`
-- `TryDecodeKnownRegister(out QlDecodedRegisterValue? decoded)`
+- `ReadForwardPortId()`
+- `ReadForwardContent()`
 
-### 5. `QlPayloadCodec`
+### High-level business APIs
 
-Low-level encoding and decoding helpers.
+- `QlProtocolKnownCommands`
+- `QlProtocolKnownParsers`
+- `QlKnownOperations`
+- `QlProtocolKnownRouter`
 
-Common methods:
+## Byte-order notes
+
+This protocol does not use one universal byte-order rule for every field.
+
+Recommended interpretation:
+
+- protocol control fields
+  such as register address, register count, and length fields
+  use high-byte-first order
+- payload value fields
+  such as `WORD`, `FLOAT`, log content, and operation parameters
+  must follow the corresponding function-code section and data-type definition
+
+Current helper split:
 
 - `EncodeUInt16 / DecodeUInt16`
-  Note: for protocol control fields, high byte first
+  for protocol control fields
 - `EncodeValueUInt16 / DecodeValueUInt16`
-  Note: for 16-bit payload values, low byte first
+  for 16-bit payload values
 - `EncodeUInt32 / DecodeUInt32`
-- `EncodeSingle / DecodeSingle / DecodeSingles`
-- `EncodeUtf8 / DecodeUtf8`
-- `EncodeBcdDateTime / DecodeBcdDateTime / DecodeBcdDateTimeText`
-
-### 6. `QlProtocolKnownCommands`
-
-High-level known-register command builders.
-
-Typical methods:
-
-- `BuildReadDeviceTime(uint deviceAddress)`
-- `BuildReadRunStatus(uint deviceAddress)`
-- `BuildReadDeviceNo(uint deviceAddress)`
-- `BuildReadAnalyzerCode(uint deviceAddress)`
-- `BuildReadMeasureResult(uint deviceAddress)`
-- `BuildReadConcentration(uint deviceAddress)`
-- `BuildReadKbInfo(uint deviceAddress)`
-- `BuildReadMeterStrongLight(uint deviceAddress)`
-- `BuildReadVersionBundle(uint deviceAddress)`
-- `BuildSetDeviceTime(uint deviceAddress, DateTime value)`
-
-### 7. `QlProtocolKnownParsers`
-
-High-level known-register response parsers.
-
-Typical methods:
-
-- `TryParseDeviceTime`
-- `TryParseDeviceNo`
-- `TryParseAnalyzerCode`
-- `TryParseConcentration`
-- `TryParseRunStatus`
-- `TryParseMeasureResult`
-- `TryParseKbInfo`
-- `TryParseMeterStrongLight`
-- `TryParseVersionBundle`
-
-### 8. `QlKnownOperations`
-
-Unified catalog that combines register metadata, read-command building, and typed parsing.
-
-```csharp
-uint deviceAddress = 0x10000001;
-
-byte[] cmd = QlKnownOperations.DeviceTime.BuildRead(deviceAddress);
-
-if (QlKnownOperations.DeviceTime.TryParse(frame, out DateTime time))
-{
-    Console.WriteLine(time);
-}
-```
-
-### 9. `QlProtocolKnownRouter`
-
-Unified known-response router.
-
-```csharp
-if (QlProtocolKnownRouter.TryParse(frame, out var result) && result != null)
-{
-    Console.WriteLine(result.Name);
-    Console.WriteLine(result.Value);
-}
-```
-
-## Current capabilities
-
-- packet building for the documented main structure
-- packet parsing for the documented main structure
-- CRC16 validation
-- optional envelope parsing
-- optional envelope stream decoding
-- high-level APIs for common known registers
-- generic typed payload readers
-- known-operation catalog and unified response router
+  for 32-bit payload values
+- `EncodeSingle / DecodeSingle`
+  for floating-point values
 
 ## Current boundary
 
-- the main application-layer protocol is covered
-- `0x08 / 0x23 / 0x26 / 0x30 / 0x32 / 0x33` currently have generic structural parsing support
-- the detailed business meaning of those payloads should still be interpreted using the corresponding document sections
-- for new registers or new business fields, prefer generic APIs first and add high-level wrappers only when needed
+- `0x03 / 0x06` have dedicated request and response helpers
+- `0x32` now has dedicated build and parse helpers
+- `0x08 / 0x23 / 0x26 / 0x30 / 0x33` are still mainly handled as generic structural frames
+- deeper business-field interpretation can still be added on top according to the protocol document
 
 ## Repository layout
 
@@ -330,22 +266,18 @@ if (QlProtocolKnownRouter.TryParse(frame, out var result) && result != null)
 - `examples/QLProtocolLibrary.Demo`: source-based demo
 - `examples/QLProtocolLibrary.NuGetDemo`: NuGet usage sample
 - `tests/QLProtocolLibrary.Tests`: unit tests
-- `docs`: API docs and publishing docs
+- `docs`: API and publishing docs
 
 ## Documentation index
 
-- NuGet package README: [src/QLProtocolLibrary/README.md](src/QLProtocolLibrary/README.md)
-- API reference (Chinese): [docs/API.zh-CN.md](docs/API.zh-CN.md)
-- API reference (English): [docs/API.en.md](docs/API.en.md)
-- Publishing checklist (Chinese): [docs/PUBLISHING.zh-CN.md](docs/PUBLISHING.zh-CN.md)
-- Publishing checklist (English): [docs/PUBLISHING.en.md](docs/PUBLISHING.en.md)
-- Changelog: [CHANGELOG.md](CHANGELOG.md)
-- Source-based demo: [examples/QLProtocolLibrary.Demo/Program.cs](examples/QLProtocolLibrary.Demo/Program.cs)
-- NuGet usage sample: [examples/QLProtocolLibrary.NuGetDemo/Program.cs](examples/QLProtocolLibrary.NuGetDemo/Program.cs)
+- package README: [src/QLProtocolLibrary/README.md](src/QLProtocolLibrary/README.md)
+- Chinese API reference: [docs/API.zh-CN.md](docs/API.zh-CN.md)
+- English API reference: [docs/API.en.md](docs/API.en.md)
+- changelog: [CHANGELOG.md](CHANGELOG.md)
 
 ## Project links
 
 - GitHub repository: https://github.com/zpczpc/QLProtocolLibrary
 - Issue tracker: https://github.com/zpczpc/QLProtocolLibrary/issues
 - NuGet package: https://www.nuget.org/packages/QLProtocolLibrary
-- License: MIT, see `LICENSE`
+- License: MIT, see [LICENSE](LICENSE)

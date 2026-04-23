@@ -40,6 +40,20 @@ namespace QLProtocolLibrary
             return trimTrailingNulls ? value.TrimEnd('\0') : value;
         }
 
+        public static byte ReadForwardPortId(this QlProtocolFrame frame)
+        {
+            byte[] payload = GetForwardPayload(frame);
+            return payload[0];
+        }
+
+        public static byte[] ReadForwardContent(this QlProtocolFrame frame)
+        {
+            byte[] payload = GetForwardPayload(frame);
+            byte[] content = new byte[payload.Length - 1];
+            Array.Copy(payload, 1, content, 0, content.Length);
+            return content;
+        }
+
         public static DateTime ReadBcdDateTime(this QlProtocolFrame frame, int payloadOffset = 0)
         {
             return QlPayloadCodec.DecodeBcdDateTime(GetPayload(frame), payloadOffset);
@@ -140,6 +154,22 @@ namespace QLProtocolLibrary
             }
 
             return frame.Payload ?? Array.Empty<byte>();
+        }
+
+        private static byte[] GetForwardPayload(QlProtocolFrame frame)
+        {
+            byte[] payload = GetPayload(frame);
+            if (frame.FunctionCode != QlFunctionCode.Forward)
+            {
+                throw new QlProtocolException("Frame is not a 0x32 forward frame.");
+            }
+
+            if (payload.Length < 1)
+            {
+                throw new QlProtocolException("Forward payload must contain at least a portId byte.");
+            }
+
+            return payload;
         }
     }
 }

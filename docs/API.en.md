@@ -2,7 +2,7 @@
 
 ## Overview
 
-This library implements the main application-layer packet model used by this project.
+This library implements the main application-layer packet model used by the project.
 
 Default bare packet format:
 
@@ -16,7 +16,7 @@ Optional envelope format:
 C6 F4 C2 CC + Length(2) + BarePacket + 0D 0A
 ```
 
-If your workflow is simply “send one packet, receive one packet”, the bare packet APIs are the primary path.
+If your workflow is simply “send one frame, receive one frame”, the bare packet APIs are the primary path.
 
 ## Usage layers
 
@@ -39,7 +39,7 @@ Recommended interpretation:
   use high-byte-first order
 - payload value fields
   such as `WORD`, `FLOAT`, log content, and operation parameters
-  must follow the specific function-code section and type definition in the document
+  must follow the specific function-code section and type definition
 
 Current helper split:
 
@@ -58,7 +58,7 @@ Current helper split:
 
 Purpose: combine register metadata, read-command building, and typed response parsing.
 
-Typical members:
+Common members:
 
 - `QlKnownOperations.DeviceTime`
 - `QlKnownOperations.RunStatus`
@@ -73,33 +73,13 @@ Common methods:
 - `TryParse(QlProtocolFrame frame, out T value)`
 - `Parse(QlProtocolFrame frame)`
 
-Example:
-
-```csharp
-uint deviceAddress = 0x10000001;
-
-byte[] cmd = QlKnownOperations.DeviceTime.BuildRead(deviceAddress);
-
-if (QlKnownOperations.DeviceTime.TryParse(frame, out DateTime time))
-{
-    Console.WriteLine(time);
-}
-```
-
 ### `QlProtocolKnownRouter`
 
-Purpose: route an incoming frame to a known business result automatically.
+Purpose: route a known business frame to the correct typed result.
 
 Common method:
 
 - `TryParse(QlProtocolFrame frame, out QlKnownParseResult? result)`
-
-Result object:
-
-- `Name`
-- `Register`
-- `Value`
-- `GetValue<T>()`
 
 ### `QlProtocolKnownCommands`
 
@@ -118,7 +98,7 @@ Typical methods:
 
 ### `QlProtocolKnownParsers`
 
-Purpose: parse known business-register responses.
+Purpose: parse responses for known business registers.
 
 Typical methods:
 
@@ -136,7 +116,7 @@ Typical methods:
 
 ### `QlProtocolCommandBuilder`
 
-Purpose: build packets directly from device address, function code, and function data.
+Purpose: build frames directly from device address, function code, and function data.
 
 Common methods:
 
@@ -149,11 +129,10 @@ Common methods:
 - `BuildWriteFloat(uint deviceAddress, ushort address, params float[] values)`
 - `BuildWriteUtf8(uint deviceAddress, ushort address, string value, int fixedByteLength = 0)`
 - `BuildSetTime(uint deviceAddress, DateTime value)`
-- `BuildReadHex(...)`
-- `BuildWriteHex(...)`
-- `BuildSetTimeHex(...)`
+- `BuildForward(uint deviceAddress, byte portId, byte[] forwardedContent, bool includeEnvelope = false)`
+- `BuildForwardHex(uint deviceAddress, byte portId, byte[] forwardedContent, bool includeEnvelope = false)`
 
-Document example:
+Example:
 
 ```csharp
 uint deviceAddress = 0x10000001;
@@ -162,18 +141,24 @@ Console.WriteLine(QlHexConverter.ToHexString(cmd));
 // 10 00 00 01 03 00 00 00 01 43 21
 ```
 
-Write-float example:
+`0x32` forwarding example:
 
 ```csharp
-uint deviceAddress = 0x10000005;
-byte[] cmd = QlProtocolCommandBuilder.BuildWriteFloat(deviceAddress, 0x164E, 0.0596f);
+byte[] forwardedContent = QlHexConverter.FromHexString(
+    "10 00 00 01 06 00 16 00 01 04 01 00 00 00 2E F9");
+
+byte[] cmd = QlProtocolCommandBuilder.BuildForward(
+    0x1000000F,
+    0x01,
+    forwardedContent);
+
 Console.WriteLine(QlHexConverter.ToHexString(cmd));
-// 10 00 00 05 06 16 4E 00 01 04 21 1F 74 3D 05 E4
+// 10 00 00 0F 32 00 11 01 10 00 00 01 06 00 16 00 01 04 01 00 00 00 2E F9 CE D2
 ```
 
 ### `QlProtocolParser`
 
-Purpose: parse a full packet into `QlProtocolFrame`.
+Purpose: parse a full frame into `QlProtocolFrame`.
 
 Common methods:
 
@@ -184,8 +169,8 @@ Common methods:
 
 Notes:
 
-- supports bare packets
-- supports optionally wrapped packets
+- supports bare frames
+- supports optionally wrapped frames
 
 ### `QlProtocolFrame`
 
@@ -226,65 +211,27 @@ Common methods:
 - `ReadBcdDateTime()`
 - `ReadBcdDateTimeText()`
 - `ReadUInt16Array()`
+- `ReadForwardPortId()`
+- `ReadForwardContent()`
 - `Decode(QlRegisterDefinition register)`
 - `TryDecodeKnownRegister(out QlDecodedRegisterValue? decoded)`
 
-Example:
+`0x32` parse example:
 
 ```csharp
-// Read-float example
-byte[] requestBytes = QlProtocolCommandBuilder.BuildRead(0x10000001, 0x0000, 0x0001);
-Console.WriteLine(QlHexConverter.ToHexString(requestBytes));
-// 10 00 00 01 03 00 00 00 01 43 21
+QlProtocolFrame frame = QlProtocolParser.ParseHex(
+    "10 00 00 0F 32 00 11 01 10 00 00 01 06 00 16 00 01 04 01 00 00 00 2E F9 CE D2");
 
-byte[] responseBytes =
-{
-    0x10, 0x00, 0x00, 0x01,
-    0x03,
-    0x00, 0x00,
-    0x04,
-    0x1C, 0x04, 0x1F, 0x41,
-    0x97, 0xE9
-};
+byte portId = frame.ReadForwardPortId();
+byte[] content = frame.ReadForwardContent();
 
-QlProtocolFrame frame = QlProtocolParser.Parse(responseBytes);
-
-float value = frame.ReadSingle();
-Console.WriteLine(value); // 9.9385
+Console.WriteLine(portId); // 1
+Console.WriteLine(QlHexConverter.ToHexString(content));
 ```
-
-Write-float response example:
-
-```csharp
-byte[] writeRequestBytes = QlProtocolCommandBuilder.BuildWriteFloat(0x10000005, 0x164E, 0.0596f);
-Console.WriteLine(QlHexConverter.ToHexString(writeRequestBytes));
-// 10 00 00 05 06 16 4E 00 01 04 21 1F 74 3D 05 E4
-
-byte[] writeResponseBytes =
-{
-    0x10, 0x00, 0x00, 0x05,
-    0x06,
-    0x16, 0x4E,
-    0x01,
-    0x60,
-    0x2A, 0x82
-};
-
-QlProtocolFrame writeFrame = QlProtocolParser.Parse(writeResponseBytes);
-
-Console.WriteLine(writeFrame.Kind); // WriteResponse
-Console.WriteLine($"0x{writeFrame.ResponseCode.GetValueOrDefault():X2}"); // 0x60
-```
-
-Additional note:
-
-- real communication code usually receives raw `byte[]`
-- therefore `Parse(byte[])` should be the primary API
-- `ParseHex(...)` is mainly a debugging, testing, and documentation helper
 
 ### `QlPayloadCodec`
 
-Purpose: low-level field and payload-value encoding/decoding.
+Purpose: low-level field and payload-value encoding/decoding helpers.
 
 Common methods:
 
@@ -297,52 +244,54 @@ Common methods:
 
 ## Function-code coverage
 
-### `0x03` read registers
+### `0x03`
 
-Currently supports:
+Current support:
 
+- request building
 - request parsing
 - response parsing
-- high-level known-register command building and parsing
+- high-level known-register read support
 
-Typical scenario:
+### `0x06`
 
-- request: `10 00 00 01 03 00 00 00 01 43 21`
-- response: `10 00 00 01 03 00 00 04 1C 04 1F 41 97 E9`
-- parsed value: `9.9385`
-
-### `0x06` write registers
-
-Currently supports:
+Current support:
 
 - request building
 - request parsing
 - simple response parsing
 
-Typical scenario:
+### `0x32`
 
-- request: `10 00 00 05 06 16 4E 00 01 04 21 1F 74 3D 05 E4`
-- response: `10 00 00 05 06 16 4E 01 60 2A 82`
-- response code: `0x60`
+Current support:
 
-### `0x08`
-
-Currently supports:
-
+- dedicated request helper: `BuildForward(...)`
+- dedicated hex helper: `BuildForwardHex(...)`
 - generic structural parsing
-- response-code extraction
+- dedicated parse helpers: `ReadForwardPortId()` / `ReadForwardContent()`
 
-### `0x23 / 0x26 / 0x30 / 0x32 / 0x33`
+Structure:
 
-Currently supports:
-
-- generic “length field + payload” parsing according to the document structure
+```text
+DeviceAddress(4) + 0x32(1) + DataLength(2) + PortId(1) + ForwardedContent(N) + CRC16(2)
+```
 
 Notes:
 
-- those function codes have richer business payload definitions
-- the library currently focuses on structural parsing first
-- higher-level business interpretation can be extended on top as needed
+- `DataLength = PortId + ForwardedContent`
+- `ForwardedContent` is usually another complete normal QL command
+
+### `0x08 / 0x23 / 0x26 / 0x30 / 0x33`
+
+Current support:
+
+- generic structural parsing
+
+Notes:
+
+- these function codes have richer business payload definitions
+- the library currently focuses on structural support first
+- deeper business interpretation can be added on top as needed
 
 ## Common result models
 
@@ -374,12 +323,6 @@ Known register definitions are provided in `QlKnownRegisters`:
 - `AnalyzerCode`
 - `VersionBundle`
 
-For registers not included yet:
-
-```csharp
-var register = QlKnownRegisters.GetOrCreateRaw(500, 1, "CustomRegister");
-```
-
 ## Selection advice
 
 For business callers:
@@ -392,11 +335,7 @@ For protocol extension work:
 - prefer `QlProtocolCommandBuilder`
 - then combine it with `QlProtocolParser + QlProtocolFrameExtensions`
 
-For optional wrapped streams:
-
-- use `QlProtocolStreamDecoder`
-
-For simple “send one packet, receive one packet” flows:
+For simple “send one frame, receive one frame” flows:
 
 - `Build...` + `Parse...` is usually enough
 
@@ -408,4 +347,4 @@ Important:
 
 - it handles `C6 F4 C2 CC + Length + BarePacket + 0D 0A`
 - bare packets themselves do not carry their own stream boundary marker
-- for bare packets, the transport layer must already preserve one-packet boundaries or you must manage framing externally
+- for bare packets, the transport layer must preserve packet boundaries or you must manage framing externally

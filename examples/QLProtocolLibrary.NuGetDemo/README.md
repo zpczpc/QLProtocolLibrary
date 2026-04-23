@@ -1,18 +1,25 @@
 # QLProtocolLibrary.NuGetDemo
 
-这个示例演示“外部项目如何通过 NuGet 包使用 `QLProtocolLibrary`”，并且示例代码已经按协议文档的主报文结构改写：
+这个示例演示“外部项目如何通过 NuGet 包使用 `QLProtocolLibrary`”。
 
-```text
-设备地址(4) + 功能码(1) + 功能数据(N) + CRC16(2)
-```
+它关注的最小流程是：
 
-它不依赖当前仓库源码项目引用，而是通过 `PackageReference` 使用 NuGet 包。
+1. 组一个请求报文 `byte[]`
+2. 把这个 `byte[]` 发给设备
+3. 收到设备返回的 `byte[]`
+4. 用 `QlProtocolParser.Parse(...)` 解包
+
+## 当前状态
+
+这个示例工程目前仍固定引用 `QLProtocolLibrary 0.4.0`，目的是在仓库发布 `0.5.0` 之前保持 CI 与解决方案可正常恢复和编译。
+
+等 `0.5.0` 正式发布到 nuget.org 后，你可以把 `PackageReference` 升级到 `0.5.0`，然后把示例中的 `0x32` 本地 helper 替换成正式 API：
+
+- `QlProtocolCommandBuilder.BuildForward(...)`
+- `frame.ReadForwardPortId()`
+- `frame.ReadForwardContent()`
 
 ## 运行
-
-这个示例默认假设 `QLProtocolLibrary 0.4.0` 已经发布到 nuget.org。
-
-发布后可以直接运行：
 
 ```bash
 dotnet restore
@@ -21,21 +28,24 @@ dotnet run
 
 ## 这个示例包含
 
-- 使用 `PackageReference` 引用 `QLProtocolLibrary 0.4.0`
-- 文档风格组包：`QlProtocolCommandBuilder`
-- 文档风格解包：`QlProtocolParser`
-- 高层已知寄存器 API：`QlProtocolKnownCommands` / `QlKnownOperations`
-- 已知响应路由：`QlProtocolKnownRouter`
-- 可选包络流拆分：`QlProtocolStreamDecoder`
+- `0x03` 读请求与读响应解析
+- `0x06` 写请求与写响应解析
+- `0x32` 指令转发报文结构演示
+- 最小的“发一帧、收一帧、直接解析”的调用方式
 
-## 示例关注点
+## 升级到 `0.5.0` 后的 `0x32` 用法
 
-- 直接构造 `0x03` 读寄存器报文
-- 直接解析文档里的 `0x03` 读响应示例
-- 展示用户在真实项目里“发送一个 `byte[]`，接收一个 `byte[]`，然后解析”的最小流程
+```csharp
+byte[] forwardedCommand = QlHexConverter.FromHexString(
+    "10 00 00 01 06 00 16 00 01 04 01 00 00 00 2E F9");
 
-如果你的实际使用场景是“发一帧、收一帧”，通常只需要：
+byte[] requestBytes = QlProtocolCommandBuilder.BuildForward(
+    0x1000000F,
+    0x01,
+    forwardedCommand);
 
-1. `QlProtocolCommandBuilder.Build...`
-2. 把 `byte[]` 发给设备
-3. 收到 `byte[]` 后调用 `QlProtocolParser.Parse(...)`
+QlProtocolFrame frame = QlProtocolParser.Parse(requestBytes);
+
+byte portId = frame.ReadForwardPortId();
+byte[] forwardedContent = frame.ReadForwardContent();
+```

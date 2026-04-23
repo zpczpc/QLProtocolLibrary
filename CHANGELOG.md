@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-04-22
+
+### Added
+
+- dedicated `0x32` command-forwarding builder: `QlProtocolCommandBuilder.BuildForward(...)`
+- dedicated `0x32` hex helper: `QlProtocolCommandBuilder.BuildForwardHex(...)`
+- dedicated `0x32` parse helpers: `ReadForwardPortId()` and `ReadForwardContent()`
+- source demo coverage for the new `0x32` APIs
+- unit tests that validate the documented `0x32` forwarding example
+
+### Changed
+
+- refreshed root README, package README, and bilingual API docs for the `0.5.0` release
+- clarified the `0x32` frame structure as `DataLength + PortId + ForwardedContent`
+- kept the external NuGet demo pinned to `0.4.0` until the new package is published, while documenting the direct `0.5.0` upgrade path
+
 ## [0.4.0] - 2026-04-14
 
 ### Changed
