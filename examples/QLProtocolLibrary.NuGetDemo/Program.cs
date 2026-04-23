@@ -9,7 +9,7 @@ ushort writeUInt16Value = 1;
 const byte WriteSuccessCode = 0x60;
 
 Console.WriteLine("=== 1. NuGet 安装命令 ===");
-Console.WriteLine("dotnet add package QLProtocolLibrary --version 0.4.0");
+Console.WriteLine("dotnet add package QLProtocolLibrary --version 0.5.0");
 
 Console.WriteLine();
 Console.WriteLine("=== 2. 组 0x03 读请求 ===");
@@ -104,9 +104,7 @@ byte[] forwardedCommand =
     0x2E, 0xF9
 };
 
-// 当前 NuGet 0.4.0 还没有内置 BuildForward / ReadForwardPortId / ReadForwardContent。
-// 等你发布包含新 API 的版本后，这里可以直接换成库方法一行调用。
-byte[] forwardRequestBytes = BuildForwardPacket(
+byte[] forwardRequestBytes = QlProtocolCommandBuilder.BuildForward(
     forwardGatewayAddress,
     forwardPortId,
     forwardedCommand);
@@ -123,9 +121,9 @@ QlProtocolFrame forwardRequestFrame = QlProtocolParser.Parse(forwardRequestBytes
 Console.WriteLine($"报文类型：{forwardRequestFrame.Kind}");
 Console.WriteLine($"功能码：0x{forwardRequestFrame.RawFunctionCode:X2}");
 Console.WriteLine($"数据长度：{forwardRequestFrame.DataLength}");
-Console.WriteLine($"解析出的端口 ID：{GetForwardPortId(forwardRequestFrame)}");
+Console.WriteLine($"解析出的端口 ID：{forwardRequestFrame.ReadForwardPortId()}");
 Console.WriteLine("解析出的转发内容：");
-Console.WriteLine(QlHexConverter.ToHexString(GetForwardContent(forwardRequestFrame)));
+Console.WriteLine(QlHexConverter.ToHexString(forwardRequestFrame.ReadForwardContent()));
 
 Console.WriteLine();
 Console.WriteLine("=== 7. 解析模拟 0x32 转发响应 ===");
@@ -140,7 +138,7 @@ byte[] forwardedResponse =
     0x0A, 0x8F
 };
 
-byte[] forwardResponseBytes = BuildForwardPacket(
+byte[] forwardResponseBytes = QlProtocolCommandBuilder.BuildForward(
     forwardGatewayAddress,
     forwardPortId,
     forwardedResponse);
@@ -153,74 +151,12 @@ Console.WriteLine($"报文类型：{forwardResponseFrame.Kind}");
 Console.WriteLine($"功能码：{forwardResponseFrame.FunctionCode}");
 Console.WriteLine($"CRC 是否有效：{forwardResponseFrame.IsCrcValid}");
 Console.WriteLine($"数据长度：{forwardResponseFrame.DataLength}");
-Console.WriteLine($"解析出的端口 ID：{GetForwardPortId(forwardResponseFrame)}");
+Console.WriteLine($"解析出的端口 ID：{forwardResponseFrame.ReadForwardPortId()}");
 Console.WriteLine("转发响应里的内容：");
-Console.WriteLine(QlHexConverter.ToHexString(GetForwardContent(forwardResponseFrame)));
+Console.WriteLine(QlHexConverter.ToHexString(forwardResponseFrame.ReadForwardContent()));
 
 Console.WriteLine();
 Console.WriteLine("=== 8. 0x32 用法总结 ===");
 Console.WriteLine("1) 先把你要转发的正常命令按原来的方式组出来。");
-Console.WriteLine("2) 在这条命令前面加 1 个字节的端口 ID。");
-Console.WriteLine("3) 数据长度 = 1 字节端口 ID + 被转发命令长度。");
-Console.WriteLine("4) Parse(...) 后，payload[0] 是端口 ID，payload[1..] 才是被转发内容。");
-
-static byte[] BuildForwardPacket(uint deviceAddress, byte portId, byte[] forwardedContent, bool includeEnvelope = false)
-{
-    byte[] functionData = Combine(
-        QlPayloadCodec.EncodeUInt16((ushort)(forwardedContent.Length + 1)),
-        new[] { portId },
-        forwardedContent);
-
-    return QlProtocolCommandBuilder.BuildPacket(
-        deviceAddress,
-        (byte)QlFunctionCode.Forward,
-        functionData,
-        includeEnvelope);
-}
-
-static byte GetForwardPortId(QlProtocolFrame frame)
-{
-    ValidateForwardFrame(frame);
-    return frame.Payload[0];
-}
-
-static byte[] GetForwardContent(QlProtocolFrame frame)
-{
-    ValidateForwardFrame(frame);
-
-    byte[] content = new byte[frame.Payload.Length - 1];
-    Array.Copy(frame.Payload, 1, content, 0, content.Length);
-    return content;
-}
-
-static void ValidateForwardFrame(QlProtocolFrame frame)
-{
-    if (frame.FunctionCode != QlFunctionCode.Forward)
-    {
-        throw new InvalidOperationException("当前报文不是 0x32 指令转发报文。");
-    }
-
-    if (frame.Payload.Length < 1)
-    {
-        throw new InvalidOperationException("0x32 的 payload 至少要包含 1 个字节的端口 ID。");
-    }
-}
-
-static byte[] Combine(params byte[][] arrays)
-{
-    int totalLength = 0;
-    for (int i = 0; i < arrays.Length; i++)
-    {
-        totalLength += arrays[i].Length;
-    }
-
-    byte[] result = new byte[totalLength];
-    int offset = 0;
-    for (int i = 0; i < arrays.Length; i++)
-    {
-        Array.Copy(arrays[i], 0, result, offset, arrays[i].Length);
-        offset += arrays[i].Length;
-    }
-
-    return result;
-}
+Console.WriteLine("2) 调用 QlProtocolCommandBuilder.BuildForward(...) 组外层 0x32 报文。");
+Console.WriteLine("3) Parse(...) 后，用 ReadForwardPortId() 和 ReadForwardContent() 取端口和内容。");

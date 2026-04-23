@@ -1,6 +1,6 @@
 # QLProtocolLibrary.NuGetDemo
 
-这个示例演示“外部项目如何通过 NuGet 包使用 `QLProtocolLibrary`”。
+这个示例演示“外部项目如何通过 NuGet 包使用 `QLProtocolLibrary 0.5.0`”。
 
 它关注的最小流程是：
 
@@ -11,9 +11,7 @@
 
 ## 当前状态
 
-这个示例工程目前仍固定引用 `QLProtocolLibrary 0.4.0`，目的是在仓库发布 `0.5.0` 之前保持 CI 与解决方案可正常恢复和编译。
-
-等 `0.5.0` 正式发布到 nuget.org 后，你可以把 `PackageReference` 升级到 `0.5.0`，然后把示例中的 `0x32` 本地 helper 替换成正式 API：
+这个示例工程现在已经切到 `QLProtocolLibrary 0.5.0`，`0x32` 指令转发直接使用正式 API：
 
 - `QlProtocolCommandBuilder.BuildForward(...)`
 - `frame.ReadForwardPortId()`
@@ -30,10 +28,10 @@ dotnet run
 
 - `0x03` 读请求与读响应解析
 - `0x06` 写请求与写响应解析
-- `0x32` 指令转发报文结构演示
+- `0x32` 指令转发正式 API 演示
 - 最小的“发一帧、收一帧、直接解析”的调用方式
 
-## 升级到 `0.5.0` 后的 `0x32` 用法
+## `0x32` 用法
 
 ```csharp
 byte[] forwardedCommand = QlHexConverter.FromHexString(
